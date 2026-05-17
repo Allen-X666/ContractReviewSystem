@@ -262,3 +262,40 @@ models/*.h5
 
 # Keep empty directories
 !.gitkeep
+
+# HuggingFace cache
+.huggingface/
+*/huggingface/cache/
+*/.cache/huggingface/
+
+# Model files (large)
+*.bin
+*.pth
+*.safetensors
+*.ckpt
+*.h5
+*.gguf
+*.ggml
+
+# Data files
+*.csv
+*.jsonl
+*.parquet
+
+# Frontend build
+frontend/dist/
+frontend/node_modules/
+
+# Backend build
+ContractReview/target/
+ContractReview/.gradle/
+
+# Log files
+*.log
+logs/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+*.md
