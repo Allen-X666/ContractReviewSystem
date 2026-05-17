@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.contractreview.mapper.LawMapper">
+
+    <!-- 法规结果映射 -->
+    <resultMap id="LawRegulationResultMap" type="com.example.contractreview.model.entity.LawRegulation">
+        <id column="id" property="id"/>
+        <result column="name" property="name"/>
+        <result column="category" property="category" typeHandler="com.example.contractreview.config.MyBatisEnumTypeHandler"/>
+        <result column="issuer" property="issuer"/>
+        <result column="publish_date" property="publishDate"/>
+        <result column="effective_date" property="effectiveDate"/>
+        <result column="status" property="status" typeHandler="com.example.contractreview.config.MyBatisEnumTypeHandler"/>
+        <result column="description" property="description"/>
+        <result column="article_count" property="articleCount"/>
+        <result column="is_new" property="isNew"/>
+        <result column="created_at" property="createdAt"/>
+    </resultMap>
+
+    <!-- 法条结果映射 -->
+    <resultMap id="LawArticleResultMap" type="com.example.contractreview.model.entity.LawArticle">
+        <id column="id" property="id"/>
+        <result column="law_id" property="lawId"/>
+        <result column="article_no" property="articleNo"/>
+        <result column="title" property="title"/>
+        <result column="content" property="content"/>
+        <result column="interpretation" property="interpretation"/>
+        <result column="created_at" property="createdAt"/>
+    </resultMap>
+
+    <!-- 获取所有法规分类 -->
+    <select id="selectAllCategories" resultType="java.lang.String">
+        SELECT DISTINCT category FROM law_regulation ORDER BY category
+    </select>
+
+    <!-- 搜索法规 -->
+    <select id="searchLaws" resultMap="LawRegulationResultMap">
+        SELECT
+            lr.id,
+            lr.name,
+            lr.category,
+            lr.issuer,
+            lr.publish_date,
+            lr.effective_date,
+            lr.status,
+            lr.description,
+            lr.is_new,
+            lr.created_at,
+            (SELECT COUNT(*) FROM law_article la WHERE la.law_id = lr.id) as article_count
+        FROM law_regulation lr
+        <where>
+            <if test="keyword != null and keyword != ''">
+                AND (lr.name LIKE CONCAT('%', #{keyword}, '%')
+                OR lr.description LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            <if test="category != null and category != ''">
+                AND lr.category = #{category}
+            </if>
+        </where>
+        ORDER BY lr.created_at DESC
+    </select>
+
+    <!-- 根据ID查询法规 -->
+    <select id="selectById" resultMap="LawRegulationResultMap">
+        SELECT
+            id,
+            name,
+            category,
+            issuer,
+            publish_date,
+            effective_date,
+            status,
+            description,
+            is_new,
+            created_at
+        FROM law_regulation
+        WHERE id = #{lawId}
+    </select>
+
+    <!-- 根据法规ID查询法条列表 -->
+    <select id="selectArticlesByLawId" resultMap="LawArticleResultMap">
+        SELECT * FROM law_article WHERE law_id = #{lawId} ORDER BY article_no
+    </select>
+
+    <!-- 法律文档结果映射 -->
+    <resultMap id="LawDocumentResultMap" type="com.example.contractreview.model.entity.LawDocument">
+        <id column="id" property="id"/>
+        <result column="name" property="name"/>
+        <result column="type" property="type" typeHandler="com.example.contractreview.config.MyBatisEnumTypeHandler"/>
+        <result column="file_path" property="filePath"/>
+        <result column="file_size" property="fileSize"/>
+        <result column="file_type" property="fileType"/>
+        <result column="effective_date" property="effectiveDate"/>
+        <result column="description" property="description"/>
+        <result column="upload_user_id" property="uploadUserId"/>
+    </resultMap>
+
+    <!-- 插入法律文档 -->
+    <insert id="insertLawDocument" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO  law_document(
+            name,
+            type,
+            file_path,
+            file_size,
+            file_type,
+            effective_date,
+            description,
+            upload_user_id,
+            create_at
+        ) VALUES (
+            #{name},
+            #{type},
+            #{filePath},
+            #{fileSize},
+            #{fileType},
+            #{effectiveDate},
+            #{description},
+            #{uploadUserId},
+            NOW()
+        )
+    </insert>
+
+    <!-- 查询所有法律文档列表 -->
+    <select id="selectAllLawDocuments" resultMap="LawDocumentResultMap">
+        SELECT * FROM law_document WHERE id > 0 ORDER BY create_at DESC
+    </select>
+
+    <!-- 根据ID查询法律文档 -->
+    <select id="selectLawDocumentById" resultMap="LawDocumentResultMap">
+        SELECT * FROM law_document WHERE id = #{id} AND id > 0
+    </select>
+
+    <!-- 根据ID删除法律文档 -->
+    <delete id="deleteLawDocumentById">
+        DELETE FROM law_document WHERE id = #{id} AND id > 0
+    </delete>
+
+</mapper>

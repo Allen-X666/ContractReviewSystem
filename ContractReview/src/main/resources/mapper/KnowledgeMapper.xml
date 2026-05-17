@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.contractreview.mapper.KnowledgeMapper">
+
+    <!-- 查询知识库统计数据 -->
+    <select id="selectKnowledgeStats" resultType="com.example.contractreview.model.vo.KnowledgeStatsVO">
+        SELECT
+            (SELECT COUNT(*) FROM law_regulation) as totalLaws,
+            (SELECT COUNT(*) FROM law_article) as totalArticles,
+            (SELECT COUNT(*) FROM contract_template) as totalTemplates,
+            (SELECT MAX(created_at) FROM (
+                SELECT created_at FROM law_regulation
+                UNION ALL
+                SELECT created_at FROM law_article
+                UNION ALL
+                SELECT created_at FROM contract_template
+            ) t) as lastUpdate
+    </select>
+
+</mapper>

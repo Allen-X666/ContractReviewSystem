@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.contractreview.mapper.SystemConfigMapper">
+    <!-- 自动判断：不存在则插入，存在则更新 -->
+    <insert id="updatePath">
+        insert into user_storage_settings (user_id, upload_path, review_path)
+        values (#{userId}, #{uploadPath}, #{reviewPath})
+            on duplicate key update
+                                 upload_path = #{uploadPath},
+                                 review_path = #{reviewPath}
+    </insert>
+    <insert id="insertUploadPath">
+        insert into user_storage_settings (user_id, upload_path)
+        values (#{userId}, #{uploadPath})
+    </insert>
+    <insert id="insertReviewPath">
+        insert into user_storage_settings (user_id, review_path)
+        values (#{userId}, #{reviewPath})
+    </insert>
+
+    <select id="selectUploadPathByUserId" resultType="java.lang.String">
+        SELECT upload_path FROM user_storage_settings WHERE user_id = #{userId}
+    </select>
+    <select id="selectReviewPathByUserId" resultType="java.lang.String">
+        SELECT review_path FROM user_storage_settings WHERE user_id = #{userId}
+    </select>
+
+    <!-- 删除用户存储设置 -->
+    <delete id="deleteByUserId">
+        DELETE FROM user_storage_settings WHERE user_id = #{userId}
+    </delete>
+</mapper>

@@ -1,0 +1,311 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.contractreview.mapper.ReviewMapper">
+
+    <!-- 审查历史结果映射 -->
+    <resultMap id="ReviewHistoryVOResultMap" type="com.example.contractreview.model.vo.ReviewHistoryVO">
+        <id column="reviewId" property="reviewId"/>
+        <result column="reviewNo" property="reviewNo"/>
+        <result column="contractId" property="contractId"/>
+        <result column="contractName" property="contractName"/>
+        <result column="fileSize" property="fileSize"/>
+        <result column="status" property="status"/>
+        <result column="overallScore" property="overallScore"/>
+        <result column="createdAt" property="createdAt"/>
+        <result column="completedAt" property="completedAt"/>
+        <result column="riskSummary" property="riskSummary"
+                typeHandler="com.example.contractreview.config.JsonToMapTypeHandler"/>
+    </resultMap>
+
+    <insert id="addReviewRecord">
+        INSERT INTO review_task (user_id, review_no, contract_id, status, started_at, created_at)
+        VALUES (#{userId}, #{reviewNo}, #{contractId}, #{status}, now(), now())
+    </insert>
+    <update id="updateReviewResult">
+        UPDATE review_task
+        SET status = #{reviewResultVo.status},
+            progress = 100,
+            overall_score = #{reviewResultVo.overallScore},
+            conclusion = #{reviewResultVo.conclusion},
+            completed_at = now()
+        WHERE review_no = #{reviewId} AND user_id = #{userId}
+    </update>
+    <update id="updateReviewStatus">
+        UPDATE contract
+            JOIN review_task ON contract.id = review_task.contract_id
+        SET contract.review_status = #{status},
+            review_task.status = #{status}
+        WHERE review_no = #{reviewId}
+    </update>
+    <delete id="deleteContractHistory">
+        delete review_task, risk_item
+        FROM review_task
+        LEFT JOIN risk_item ON review_task.review_no = risk_item.review_id
+        where review_task.review_no = #{reviewId} AND review_task.user_id = #{userId}
+    </delete>
+
+    <select id="getContractHistoryStats" resultType="com.example.contractreview.model.vo.ReviewHistoryStatsVO">
+        SELECT
+            (SELECT COUNT(id) FROM review_task WHERE user_id = #{userId} AND status = "completed" ) AS total,
+            (SELECT COUNT(id) FROM review_task 
+             WHERE user_id = #{userId}
+               AND status = "completed"
+               AND created_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
+               AND created_at &lt; DATE_FORMAT(DATE_ADD(CURDATE(), INTERVAL 1 MONTH), '%Y-%m-01')) AS thisMonth,
+            (SELECT IFNULL(ROUND(AVG(overall_score)), 0) FROM review_task 
+             WHERE user_id = #{userId} AND overall_score IS NOT NULL AND status = "completed") AS avgScore,
+            (SELECT COUNT(ri.id) 
+             FROM risk_item ri
+             INNER JOIN review_task rt ON ri.review_id = rt.review_no
+             WHERE rt.user_id = #{userId} AND status = "completed") AS totalIssues
+    </select>
+    <select id="getContractHistoryList" resultMap="ReviewHistoryVOResultMap">
+        SELECT
+            rt.review_no AS reviewId,
+            rt.review_no AS reviewNo,
+            rt.contract_id AS contractId,
+            c.file_name AS contractName,
+            c.file_size AS fileSize,
+            rt.status AS status,
+            rt.overall_score AS overallScore,
+            rt.created_at AS createdAt,
+            rt.completed_at AS completedAt,
+            (
+                SELECT JSON_OBJECT(
+                    'high', COUNT(CASE WHEN risk_level = 'high' THEN 1 END),
+                    'medium', COUNT(CASE WHEN risk_level = 'medium' THEN 1 END),
+                    'low', COUNT(CASE WHEN risk_level = 'low' THEN 1 END),
+                    'none', COUNT(CASE WHEN risk_level = 'none' THEN 1 END)
+                )
+                FROM risk_item ri
+                WHERE ri.review_id = rt.review_no
+            ) AS riskSummary
+        FROM review_task rt
+        INNER JOIN contract c ON rt.contract_id = c.id
+        WHERE rt.user_id = #{userId} AND status = "completed"
+        <if test="keyword != null and keyword != ''">
+            AND c.file_name LIKE CONCAT('%', #{keyword}, '%')
+        </if>
+        <if test="startDate != null">
+            AND DATE(rt.created_at) &gt;= #{startDate}
+        </if>
+        <if test="endDate != null">
+            AND DATE(rt.created_at) &lt;= #{endDate}
+        </if>
+        ORDER BY rt.completed_at DESC
+    </select>
+    <select id="getContractTitle" resultType="java.lang.String">
+        SELECT file_name
+        FROM contract
+        left join review_task on contract.id = review_task.contract_id
+        WHERE review_task.review_no = #{reviewId}
+    </select>
+    <select id="selectRiskList" resultType="com.example.contractreview.model.vo.RiskItemVO">
+        SELECT
+            id,
+            risk_type,
+            risk_level,
+            clause_title,
+            clause_content,
+            risk_description,
+            suggestion,
+            related_laws,
+            paragraph_index
+        FROM risk_item
+        WHERE review_id = #{reviewId}
+    </select>
+
+
+    <!-- 根据合同ID获取最新审查记录 -->
+    <select id="getLatestReviewByContractId" resultType="com.example.contractreview.model.vo.LatestReviewVO">
+        SELECT
+            rt.id AS reviewId,
+            rt.review_no AS reviewNo,
+            rt.contract_id AS contractId,
+            c.file_name AS contractName,
+            CASE rt.status
+                WHEN 0 THEN 'pending'
+                WHEN 1 THEN 'processing'
+                WHEN 2 THEN 'completed'
+                WHEN 3 THEN 'failed'
+                ELSE 'unknown'
+            END AS status,
+            rt.started_at AS startedAt,
+            rt.completed_at AS completedAt,
+            rt.created_at AS createdAt,
+            rt.overall_score AS overallScore,
+            CASE
+                WHEN EXISTS(SELECT 1 FROM risk_item WHERE review_id = rt.id AND risk_level = 'high') THEN 'high'
+                WHEN EXISTS(SELECT 1 FROM risk_item WHERE review_id = rt.id AND risk_level = 'medium') THEN 'medium'
+                WHEN EXISTS(SELECT 1 FROM risk_item WHERE review_id = rt.id AND risk_level = 'low') THEN 'low'
+                ELSE 'none'
+            END AS riskLevel,
+            CASE rt.status
+                WHEN 0 THEN '等待开始'
+                WHEN 1 THEN '审查进行中'
+                WHEN 2 THEN '审查完成'
+                WHEN 3 THEN '审查失败'
+                ELSE '未知状态'
+            END AS message
+        FROM review_task rt
+        INNER JOIN contract c ON rt.contract_id = c.id
+        WHERE rt.contract_id = #{contractId}
+          AND rt.user_id = #{userId}
+        ORDER BY rt.created_at DESC
+        LIMIT 1
+    </select>
+
+    <!-- 获取审查任务基本信息 -->
+    <select id="getReviewTaskInfo" resultType="java.util.HashMap">
+        SELECT
+            rt.id AS id,
+            rt.review_no AS reviewNo,
+            rt.contract_id AS contractId,
+            c.file_name AS contractName,
+            rt.status AS status,
+            rt.overall_score AS overallScore,
+            rt.conclusion AS conclusion,
+            rt.started_at AS startedAt,
+            rt.completed_at AS completedAt,
+            rt.created_at AS createdAt
+        FROM review_task rt
+        INNER JOIN contract c ON rt.contract_id = c.id
+        WHERE (rt.id = #{reviewId} OR rt.review_no = #{reviewId})
+          AND rt.user_id = #{userId}
+        LIMIT 1
+    </select>
+    <select id="getReportPreview" resultType="com.example.contractreview.model.vo.ReportPreviewVO"></select>
+
+    <!-- 根据 review_no 更新审查状态 -->
+    <update id="updateReviewStatusByReviewNo">
+        UPDATE review_task
+        SET status = #{status},
+            started_at = IF(started_at IS NULL, NOW(), started_at)
+        WHERE review_no = #{reviewNo}
+    </update>
+
+    <!-- 插入风险项 -->
+    <insert id="insertRiskItem">
+        INSERT INTO risk_item (
+            review_id,
+            contract_id,
+            risk_type,
+            risk_level,
+            clause_title,
+            clause_content,
+            risk_description,
+            suggestion,
+            related_laws,
+            paragraph_index,
+            created_at
+        ) VALUES (
+            #{reviewId},
+            #{contractId},
+            'legal_risk',
+            #{risk.level},
+            #{risk.clause},
+            #{risk.location.text},
+            #{risk.description},
+            #{risk.suggestion},
+            <choose>
+                <when test="risk.lawReferences != null and risk.lawReferences.size() > 0">
+                    JSON_ARRAY(
+                    <foreach collection="risk.lawReferences" item="law" separator=",">
+                        JSON_OBJECT(
+                            'id', #{law.id},
+                            'name', #{law.name},
+                            'article', #{law.article},
+                            'content', #{law.content}
+                        )
+                    </foreach>
+                    )
+                </when>
+                <otherwise>NULL</otherwise>
+            </choose>,
+            #{risk.location.paragraphIndex},
+            NOW()
+        )
+    </insert>
+
+    <!-- 批量插入风险项 -->
+    <insert id="batchInsertRiskItems">
+        INSERT INTO risk_item (
+            review_id,
+            contract_id,
+            risk_type,
+            risk_level,
+            clause_title,
+            clause_content,
+            risk_description,
+            suggestion,
+            related_laws,
+            paragraph_index,
+            created_at
+        ) VALUES
+        <foreach collection="risks" item="risk" separator=",">
+            <bind name="lawRefs" value="risk.lawReferences"/>
+            (
+                #{reviewId},
+                #{contractId},
+                'legal_risk',
+                #{risk.level},
+                #{risk.clause},
+                #{risk.location.text},
+                #{risk.description},
+                #{risk.suggestion},
+                <choose>
+                    <when test="lawRefs != null">
+                        JSON_ARRAY(
+                        <foreach collection="lawRefs" item="law" separator=",">
+                            JSON_OBJECT(
+                                'id', #{law.id},
+                                'name', #{law.name},
+                                'article', #{law.article},
+                                'content', #{law.content}
+                            )
+                        </foreach>
+                        )
+                    </when>
+                    <otherwise>NULL</otherwise>
+                </choose>,
+                #{risk.location.paragraphIndex},
+                NOW()
+            )
+        </foreach>
+    </insert>
+
+    <!-- 批量获取合同最新审查记录ID -->
+    <select id="getLatestReviewIdsByContractIds" resultType="java.util.HashMap">
+        SELECT rt.contract_id AS contractId, rt.id AS reviewId, rt.review_no AS reviewNo
+        FROM review_task rt
+        INNER JOIN (
+            SELECT contract_id, MAX(id) AS max_id
+            FROM review_task
+            WHERE user_id = #{userId}
+              AND contract_id IN
+            <foreach collection="contractIds" item="cid" open="(" separator="," close=")">
+                #{cid}
+            </foreach>
+            GROUP BY contract_id
+        ) latest ON rt.id = latest.max_id
+    </select>
+
+    <!-- 重新审查时更新review_task表 -->
+    <update id="updateReviewTaskForReReview">
+        UPDATE review_task
+        SET status = 'processing',
+            progress = 0,
+            overall_score = NULL,
+            conclusion = NULL,
+            completed_at = NULL,
+            started_at = NOW()
+        WHERE review_no = #{reviewId}
+    </update>
+
+    <!-- 根据reviewId删除风险项 -->
+    <delete id="deleteRiskItemsByReviewId">
+        DELETE FROM risk_item
+        WHERE review_id = #{reviewId}
+    </delete>
+
+</mapper>

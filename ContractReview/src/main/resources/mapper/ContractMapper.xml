@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.contractreview.mapper.ContractMapper">
+
+    <!-- 结果映射 -->
+    <resultMap id="BaseResultMap" type="com.example.contractreview.model.entity.Contract">
+        <id column="id" property="id"/>
+        <result column="file_name" property="fileName"/>
+        <result column="file_path" property="filePath"/>
+        <result column="file_size" property="fileSize"/>
+        <result column="file_type" property="fileType"/>
+        <result column="user_id" property="userId"/>
+        <result column="review_status" property="reviewStatus"/>
+        <result column="risk_level" property="riskLevel"/>
+        <result column="review_score" property="reviewScore"/>
+        <result column="created_at" property="createdAt"/>
+    </resultMap>
+
+
+    <!-- 根据ID查询合同 -->
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT *
+        FROM contract
+        WHERE id = #{id}
+    </select>
+
+    <!-- 根据用户ID查询合同列表 -->
+    <select id="selectByUserId" resultMap="BaseResultMap">
+        SELECT *
+        FROM contract
+        WHERE user_id = #{userId}
+        <if test="keyword != null">
+            AND file_name LIKE CONCAT('%', #{keyword}, '%')
+        </if>
+        ORDER BY created_at DESC
+    </select>
+
+    <!-- 查询所有合同 -->
+    <select id="selectAll" resultMap="BaseResultMap">
+        SELECT *
+        FROM contract
+        ORDER BY created_at DESC
+    </select>
+
+    <!-- 插入合同 -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="contract.id">
+        INSERT INTO contract (
+            file_name,
+            file_path,
+            file_size,
+            file_type,
+            user_id,
+            review_status,
+            risk_level,
+            review_score,
+            created_at
+        ) VALUES (
+            #{contract.fileName},
+            #{contract.filePath},
+            #{contract.fileSize},
+            #{contract.fileType},
+            #{contract.userId},
+            #{contract.reviewStatus},
+            #{contract.riskLevel},
+            #{contract.reviewScore},
+            NOW()
+        )
+    </insert>
+
+    <!-- 更新合同 -->
+    <update id="update">
+        UPDATE contract
+        <set>
+            <if test="contract.fileName != null">file_name = #{contract.fileName},</if>
+            <if test="contract.filePath != null">file_path = #{contract.filePath},</if>
+            <if test="contract.fileSize != null">file_size = #{contract.fileSize},</if>
+            <if test="contract.fileType != null">file_type = #{contract.fileType},</if>
+            <if test="contract.userId != null">user_id = #{contract.userId},</if>
+            <if test="contract.reviewStatus != null">review_status = #{contract.reviewStatus},</if>
+            <if test="contract.riskLevel != null">risk_level = #{contract.riskLevel},</if>
+            <if test="contract.reviewScore != null">review_score = #{contract.reviewScore}</if>
+        </set>
+        WHERE id = #{contract.id}
+    </update>
+
+    <!-- 根据ID删除合同 -->
+    <delete id="deleteById">
+        DELETE FROM contract
+        WHERE id = #{id}
+    </delete>
+
+    <!-- 批量删除合同 -->
+    <delete id="batchDelete">
+        DELETE FROM contract
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <!-- 查询合同统计数据 -->
+    <select id="selectStatsByUserId" resultType="com.example.contractreview.model.entity.ContractStats">
+        SELECT
+            COUNT(*) as total,
+            SUM(CASE WHEN review_status = 'pending' OR review_status IS NULL THEN 1 ELSE 0 END) as pending,
+            SUM(CASE WHEN review_status = 'completed' THEN 1 ELSE 0 END) as completed,
+            SUM(CASE WHEN review_status = 'completed' AND risk_level = 'HIGH' THEN 1 ELSE 0 END) as highRisk,
+            SUM(CASE WHEN review_status = 'completed' AND risk_level = 'MEDIUM' THEN 1 ELSE 0 END) as mediumRisk,
+            SUM(CASE WHEN review_status = 'completed' AND risk_level = 'LOW' THEN 1 ELSE 0 END) as lowRisk,
+            SUM(CASE WHEN review_status = 'completed' AND (risk_level = 'NONE' OR risk_level IS NULL) THEN 1 ELSE 0 END) as noRisk,
+            ROUND(AVG(CASE WHEN review_status = 'completed' AND review_score IS NOT NULL THEN review_score END)) as avgScore,
+            MAX(CASE WHEN review_status = 'completed' THEN review_score END) as maxScore,
+            MIN(CASE WHEN review_status = 'completed' AND review_score IS NOT NULL THEN review_score END) as minScore
+        FROM contract
+        WHERE user_id = #{userId}
+    </select>
+
+    <!-- 查询用户在指定时间范围内的合同数量 -->
+    <select id="selectCountByUserIdAndTimeRange" resultType="java.lang.Long">
+        SELECT COUNT(*)
+        FROM contract
+        WHERE user_id = #{userId}
+          AND created_at &gt;= #{startTime}
+          AND created_at &lt; #{endTime}
+    </select>
+
+    <!-- 查询用户在指定时间范围内的合同统计数据 -->
+    <select id="selectStatsByUserIdAndTimeRange" resultType="com.example.contractreview.model.entity.ContractStats">
+        SELECT
+            COUNT(*) as total,
+            SUM(CASE WHEN review_status = 'pending' THEN 1 ELSE 0 END) as pending,
+            SUM(CASE WHEN review_status = 'completed' THEN 1 ELSE 0 END) as completed,
+            SUM(CASE WHEN review_status = 'completed' AND risk_level = 'HIGH' THEN 1 ELSE 0 END) as highRisk,
+            SUM(CASE WHEN review_status = 'completed' AND risk_level = 'MEDIUM' THEN 1 ELSE 0 END) as mediumRisk,
+            SUM(CASE WHEN review_status = 'completed' AND risk_level = 'LOW' THEN 1 ELSE 0 END) as lowRisk,
+            SUM(CASE WHEN review_status = 'completed' AND (risk_level = 'NONE' OR risk_level IS NULL) THEN 1 ELSE 0 END) as noRisk,
+            ROUND(AVG(CASE WHEN review_status = 'completed' AND review_score IS NOT NULL THEN review_score END)) as avgScore,
+            MAX(CASE WHEN review_status = 'completed' THEN review_score END) as maxScore,
+            MIN(CASE WHEN review_status = 'completed' AND review_score IS NOT NULL THEN review_score END) as minScore
+        FROM contract
+        WHERE user_id = #{userId}
+          AND created_at &gt;= #{startTime}
+          AND created_at &lt; #{endTime}
+    </select>
+
+    <!-- 根据ID查询文件名 -->
+    <select id="selectFileNameById" resultType="java.lang.String">
+        SELECT file_name FROM contract WHERE id = #{id}
+    </select>
+
+    <!-- 重置合同审查状态（用于重新审查） -->
+    <update id="resetReviewStatus">
+        UPDATE contract
+        SET review_status = 'processing',
+            risk_level = NULL,
+            review_score = NULL
+        WHERE id = #{id}
+    </update>
+
+</mapper>

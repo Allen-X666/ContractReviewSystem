@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.contractreview.mapper.ChatMapper">
+    <update id="deleteConversation">
+        update chatbot_conversation
+        set status = 0
+        where id = #{id}, user_id = #{userId}
+    </update>
+
+    <select id="getChatDetail" resultType="com.example.contractreview.model.vo.ChatDetailVO">
+        select
+            cm.id, cm.role, cm.content, cm.created_at as createTime
+        from
+            chatbot_message cm
+        left join chatbot_conversation cc on cm.conversation_id = cc.id
+        where cm.conversation_id = #{id} and cc.user_id = #{userId}
+    </select>
+
+    <!-- 插入对话 -->
+    <insert id="insertConversation" useGeneratedKeys="true" keyProperty="conversation.id">
+        INSERT INTO chatbot_conversation (
+            user_id, name, status, created_at, updated_at
+        ) VALUES (
+            #{conversation.userId},
+            #{conversation.name},
+            #{conversation.status},
+            #{conversation.createdAt},
+            #{conversation.updatedAt}
+        )
+    </insert>
+
+    <!-- 插入消息 -->
+    <insert id="insertMessage" useGeneratedKeys="true" keyProperty="message.id">
+        INSERT INTO chatbot_message (
+            conversation_id, role, content, created_at
+        ) VALUES (
+            #{message.conversationId},
+            #{message.role},
+            #{message.content},
+            #{message.createdAt}
+        )
+    </insert>
+
+    <!-- 更新对话名称 -->
+    <update id="updateConversationName">
+        UPDATE chatbot_conversation
+        SET updated_at = NOW()
+        <if test="name != null">
+            , name = #{name}
+        </if>
+        WHERE id = #{conversationId} and user_id = #{userId}
+    </update>
+    <update id="updateConversationUpdatedAt">
+        UPDATE chatbot_conversation
+        SET updated_at = NOW()
+        WHERE id = #{conversationId}
+    </update>
+
+    <!-- 根据ID查询对话 -->
+    <select id="selectConversationById" resultType="com.example.contractreview.model.entity.ChatbotConversation">
+        SELECT id, user_id, name, status, created_at, updated_at
+        FROM chatbot_conversation
+        WHERE id = #{conversationId}
+    </select>
+    <select id="getConversations" resultType="com.example.contractreview.model.vo.ChatbotConversationVO">
+        select
+            cc.id,
+            cc.name,
+            count(cm.id) as messageCount,
+            cc.created_at,
+            cc.updated_at
+        from chatbot_conversation cc
+                 left join chatbot_message cm
+                           on cm.conversation_id = cc.id
+        where cc.user_id = #{userId} and cc.status = 1
+        group by cc.id, cc.name, cc.created_at, cc.updated_at
+        order by cc.updated_at desc
+    </select>
+    <select id="getConversationDetail" resultType="com.example.contractreview.model.vo.ChatbotMessageVO">
+        select
+            cm.id,
+            cm.role,
+            cm.content,
+            cm.created_at
+        from chatbot_message cm
+            left join chatbot_conversation cc
+                    on cc.id = cm.conversation_id
+        where cm.conversation_id = #{id} and cc.user_id = #{userId} and cc.status = 1
+    </select>
+    <select id="getConversationName" resultType="java.lang.String">
+        select name
+        from chatbot_conversation
+        where id = #{id} and status = 1
+    </select>
+
+    <select id="getMessagesByConversationId" resultType="com.example.contractreview.model.vo.ChatbotMessageVO">
+        select
+            cm.id,
+            cm.role,
+            cm.content,
+            cm.created_at
+        from chatbot_message cm
+        where cm.conversation_id = #{conversationId}
+        order by cm.created_at asc
+    </select>
+</mapper>

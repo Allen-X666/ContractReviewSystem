@@ -1,0 +1,224 @@
+@use './variables.scss' as *;
+
+// 全局样式重置
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: $font-family;
+  font-size: $font-size-base;
+  color: $text-primary;
+  background-color: $bg-secondary;
+  line-height: 1.6;
+}
+
+// 滚动条样式
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: $bg-tertiary;
+}
+
+::-webkit-scrollbar-thumb {
+  background: $text-tertiary;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: $text-secondary;
+}
+
+// 通用工具类
+.text-primary { color: $text-primary; }
+.text-secondary { color: $text-secondary; }
+.text-tertiary { color: $text-tertiary; }
+
+.text-center { text-align: center; }
+.text-left { text-align: left; }
+.text-right { text-align: right; }
+
+.font-medium { font-weight: 500; }
+.font-bold { font-weight: 700; }
+
+.flex { display: flex; }
+.flex-col { flex-direction: column; }
+.items-center { align-items: center; }
+.justify-center { justify-content: center; }
+.justify-between { justify-content: space-between; }
+.flex-1 { flex: 1; }
+
+.gap-sm { gap: $spacing-sm; }
+.gap-md { gap: $spacing-md; }
+.gap-lg { gap: $spacing-lg; }
+
+.p-md { padding: $spacing-md; }
+.p-lg { padding: $spacing-lg; }
+
+.m-md { margin: $spacing-md; }
+.m-lg { margin: $spacing-lg; }
+
+// 卡片样式
+.card {
+  background: $bg-primary;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-sm;
+  border: 1px solid $border-light;
+}
+
+.card-hover {
+  transition: box-shadow $transition-base;
+  &:hover {
+    box-shadow: $shadow-md;
+  }
+}
+
+// 按钮样式覆盖
+.el-button {
+  font-weight: 500;
+  
+  &--primary {
+    background-color: $primary-color;
+    border-color: $primary-color;
+    
+    &:hover {
+      background-color: $primary-light;
+      border-color: $primary-light;
+    }
+  }
+}
+
+// 表单样式
+.el-input__wrapper,
+.el-textarea__inner {
+  box-shadow: 0 0 0 1px $border-color inset;
+  
+  &:hover,
+  &.is-focus {
+    box-shadow: 0 0 0 1px $primary-color inset;
+  }
+}
+
+// 表格样式
+.el-table {
+  th.el-table__cell {
+    background-color: $bg-tertiary;
+    font-weight: 600;
+    color: $text-primary;
+  }
+}
+
+// 标签样式
+.el-tag {
+  font-weight: 500;
+}
+
+// 风险等级标签
+.risk-tag-high {
+  background-color: rgba($risk-high, 0.1);
+  color: $risk-high;
+  border-color: rgba($risk-high, 0.2);
+}
+
+.risk-tag-medium {
+  background-color: rgba($risk-medium, 0.1);
+  color: $risk-medium;
+  border-color: rgba($risk-medium, 0.2);
+}
+
+.risk-tag-low {
+  background-color: rgba($risk-low, 0.1);
+  color: $risk-low;
+  border-color: rgba($risk-low, 0.2);
+}
+
+// 页面标题
+.page-title {
+  font-size: $font-size-xl;
+  font-weight: 600;
+  color: $text-primary;
+  margin-bottom: $spacing-lg;
+}
+
+// 页面容器
+.page-container {
+  padding: $spacing-lg;
+  max-width: 1440px;
+  margin: 0 auto;
+}
+
+// 加载状态
+.loading-mask {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+// 空状态
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: $spacing-2xl;
+  color: $text-secondary;
+  
+  .empty-icon {
+    font-size: 64px;
+    margin-bottom: $spacing-md;
+    color: $text-tertiary;
+  }
+  
+  .empty-text {
+    font-size: $font-size-md;
+    margin-bottom: $spacing-sm;
+  }
+  
+  .empty-desc {
+    font-size: $font-size-sm;
+    color: $text-tertiary;
+  }
+}
+
+// 动画
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in {
+  animation: fadeIn $transition-base;
+}
+
+.slide-up {
+  animation: slideUp $transition-base;
+}

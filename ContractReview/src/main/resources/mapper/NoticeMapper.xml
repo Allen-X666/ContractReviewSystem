@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.contractreview.mapper.NoticeMapper">
+
+    <resultMap id="NoticeResultMap" type="com.example.contractreview.model.entity.Notice">
+        <id column="id" property="id"/>
+        <result column="title" property="title"/>
+        <result column="type" property="type" typeHandler="com.example.contractreview.enums.NoticeTypeTypeHandler"/>
+        <result column="content" property="content"/>
+        <result column="publish_type" property="publishType" typeHandler="com.example.contractreview.enums.PublishTypeTypeHandler"/>
+        <result column="publish_time" property="publishTime"/>
+        <result column="status" property="status" typeHandler="com.example.contractreview.enums.NoticeStatusTypeHandler"/>
+        <result column="is_top" property="isTop"/>
+        <result column="author_id" property="authorId"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <!-- 插入公告 -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO sys_notice (
+            title,
+            type,
+            content,
+            publish_type,
+            publish_time,
+            status,
+            is_top,
+            author_id,
+            created_at,
+            updated_at
+        ) VALUES (
+            #{title},
+            #{type, typeHandler=com.example.contractreview.enums.NoticeTypeTypeHandler},
+            #{content},
+            #{publishType, typeHandler=com.example.contractreview.enums.PublishTypeTypeHandler},
+            #{publishTime},
+            #{status, typeHandler=com.example.contractreview.enums.NoticeStatusTypeHandler},
+            #{isTop},
+            #{authorId},
+            NOW(),
+            NOW()
+        )
+    </insert>
+
+    <!-- 根据ID查询公告 -->
+    <select id="selectById" resultMap="NoticeResultMap">
+        SELECT * FROM sys_notice WHERE id = #{id}
+    </select>
+
+    <!-- NoticeVO resultMap -->
+    <resultMap id="NoticeVOResultMap" type="com.example.contractreview.model.vo.NoticeVO">
+        <id column="id" property="id"/>
+        <result column="title" property="title"/>
+        <result column="type" property="type" typeHandler="com.example.contractreview.enums.NoticeTypeTypeHandler"/>
+        <result column="content" property="content"/>
+        <result column="publish_time" property="publishTime"/>
+        <result column="status" property="status" typeHandler="com.example.contractreview.enums.NoticeStatusTypeHandler"/>
+        <result column="is_top" property="isTop"/>
+    </resultMap>
+
+    <!-- 查询所有公告 -->
+    <select id="selectAll" resultMap="NoticeVOResultMap">
+        SELECT
+            id,
+            title,
+            type,
+            content,
+            publish_time,
+            status,
+            is_top
+        FROM sys_notice
+        WHERE status = 'PUBLISHED'
+        ORDER BY is_top DESC, publish_time DESC, created_at DESC
+    </select>
+
+    <!-- 更新公告 -->
+    <update id="update">
+        UPDATE sys_notice
+        <set>
+            <if test="notice.title != null">title = #{notice.title},</if>
+            <if test="notice.type != null">type = #{notice.type, typeHandler=com.example.contractreview.enums.NoticeTypeTypeHandler},</if>
+            <if test="notice.content != null">content = #{notice.content},</if>
+            <if test="notice.publishType != null">publish_type = #{notice.publishType, typeHandler=com.example.contractreview.enums.PublishTypeTypeHandler},</if>
+            <if test="notice.publishTime != null">publish_time = #{notice.publishTime},</if>
+            <if test="notice.status != null">status = #{notice.status, typeHandler=com.example.contractreview.enums.NoticeStatusTypeHandler},</if>
+            <if test="notice.isTop != null">is_top = #{notice.isTop},</if>
+            updated_at = NOW()
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateTop">
+        UPDATE sys_notice
+        <set>
+            <if test="isTop != null">is_top = #{isTop},</if>
+            updated_at = NOW()
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <!-- 删除公告 -->
+    <delete id="deleteById">
+        DELETE FROM sys_notice WHERE id = #{id}
+    </delete>
+
+</mapper>

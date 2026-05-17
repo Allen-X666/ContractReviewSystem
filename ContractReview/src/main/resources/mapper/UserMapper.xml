@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.contractreview.mapper.UserMapper">
+
+    <!-- 结果映射 -->
+    <resultMap id="BaseResultMap" type="com.example.contractreview.model.entity.User">
+        <id column="id" property="id"/>
+        <result column="username" property="username"/>
+        <result column="password" property="password"/>
+        <result column="nick_name" property="nickName"/>
+        <result column="email" property="email"/>
+        <result column="phone" property="phone"/>
+        <result column="avatar" property="avatar"/>
+        <result column="role" property="role" typeHandler="com.example.contractreview.enums.UserRoleTypeHandler"/>
+        <result column="status" property="status" typeHandler="com.example.contractreview.enums.UserStatusTypeHandler"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <!-- 更新用户 -->
+    <update id="update">
+        UPDATE sys_user
+        <set>
+            <if test="updateUserDTO.nickName != null">nick_name = #{updateUserDTO.nickName},</if>
+            <if test="updateUserDTO.email != null">email = #{updateUserDTO.email},</if>
+            <if test="updateUserDTO.phone != null">phone = #{updateUserDTO.phone},</if>
+            updated_at = NOW()
+        </set>
+        WHERE id = #{userId}
+    </update>
+
+    <!-- 更新用户头像 -->
+    <update id="updateAvatar">
+        UPDATE sys_user
+        SET avatar = #{avatarUrl},
+            updated_at = NOW()
+        WHERE id = #{userId}
+    </update>
+
+    <!-- 更新用户通知设置 -->
+    <!-- 使用 INSERT ... ON DUPLICATE KEY UPDATE 实现 upsert 操作 -->
+    <insert id="updateNotificationSettings">
+        INSERT INTO user_notification_setting (
+            user_id,
+            review_complete,
+            risk_alert,
+            system_notice,
+            email_notification,
+            created_at,
+            updated_at
+        ) VALUES (
+            #{userId},
+            #{notificationSettings.reviewComplete},
+            #{notificationSettings.riskAlert},
+            #{notificationSettings.systemNotice},
+            #{notificationSettings.emailNotification},
+            NOW(),
+            NOW()
+        )
+        ON DUPLICATE KEY UPDATE
+            review_complete = #{notificationSettings.reviewComplete},
+            risk_alert = #{notificationSettings.riskAlert},
+            system_notice = #{notificationSettings.systemNotice},
+            email_notification = #{notificationSettings.emailNotification},
+            updated_at = NOW()
+    </insert>
+
+    <!-- 获取用户通知设置 -->
+    <select id="getNotificationSettings"
+            resultType="com.example.contractreview.model.vo.GetNotificationSettings">
+        SELECT
+            review_complete AS reviewComplete,
+            risk_alert AS riskAlert,
+            system_notice AS systemNotice,
+            email_notification AS emailNotification
+        FROM user_notification_setting
+        WHERE user_id = #{userId}
+    </select>
+</mapper>
