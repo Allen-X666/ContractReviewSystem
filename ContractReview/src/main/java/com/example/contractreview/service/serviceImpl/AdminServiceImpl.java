@@ -559,8 +559,17 @@ public class AdminServiceImpl implements AdminService {
 
         // 发送SSE系统公告通知给所有在线用户
         try {
-            sseEmitterManager.sendToAll("system_announcement", buildAnnouncementSseData(notice));
-            log.info("系统公告SSE通知已广播, noticeId: {}, title: {}", notice.getId(), notice.getTitle());
+            int connectionCount = sseEmitterManager.getConnectionCount();
+            log.info("准备发送系统公告SSE通知, noticeId: {}, title: {}, 当前在线连接数: {}", 
+                    notice.getId(), notice.getTitle(), connectionCount);
+            
+            if (connectionCount > 0) {
+                sseEmitterManager.sendToAll("system_announcement", buildAnnouncementSseData(notice));
+                log.info("系统公告SSE通知已广播, noticeId: {}, title: {}, 目标用户数: {}", 
+                        notice.getId(), notice.getTitle(), connectionCount);
+            } else {
+                log.warn("没有在线用户连接，跳过SSE广播, noticeId: {}", notice.getId());
+            }
         } catch (Exception e) {
             log.error("发送系统公告SSE通知失败, noticeId: {}", notice.getId(), e);
         }
@@ -895,7 +904,7 @@ public class AdminServiceImpl implements AdminService {
     private Map<String, Object> buildAnnouncementSseData(Notice notice) {
         Map<String, Object> data = new HashMap<>();
         data.put("type", "system_announcement");
-        data.put("noticeId", notice.getId());
+        data.put("announcementId", notice.getId());
         data.put("title", notice.getTitle());
         data.put("content", notice.getContent());
         data.put("publishTime", notice.getPublishTime());

@@ -88,7 +88,7 @@ public class AuthController {
     @PostMapping("/change-password")
     @Operation(summary = "修改密码")
     public Result<String> changePassword(@RequestHeader("Authorization") String authorization,
-                                         @RequestBody @Valid ChangePasswordDTO changePasswordDTO) {
+                                         @RequestBody @Valid ChangePasswordDTO changePasswordDTO) throws JsonProcessingException {
         return authService.changePassword(authorization, changePasswordDTO);
     }
 
