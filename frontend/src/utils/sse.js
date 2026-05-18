@@ -44,9 +44,11 @@ class SSEClient {
 
     // 移除 Bearer 前缀，后端会自动添加
     const cleanToken = token.replace('Bearer ', '')
-    // 注意：后端配置了 context-path: /api，所以路径是 /api/notifications/stream
-    // 开发环境直接访问后端，不走 Vite 代理
-    const sseUrl = `http://localhost:8080/api/notifications/stream?token=${encodeURIComponent(cleanToken)}`
+    console.log('SSE: token前缀=', token.substring(0, 20) + '...')
+    console.log('SSE: cleanToken前缀=', cleanToken.substring(0, 20) + '...')
+    // 使用相对路径，让nginx代理处理SSE请求
+    const sseUrl = `/api/notifications/stream?token=${encodeURIComponent(cleanToken)}`
+    console.log('SSE: 连接URL=', sseUrl)
 
     try {
       this.eventSource = new EventSource(sseUrl)
@@ -90,6 +92,8 @@ class SSEClient {
 
       this.eventSource.onerror = (error) => {
         console.error('SSE: 连接错误', error)
+        console.error('SSE: readyState=', this.eventSource?.readyState)
+        console.error('SSE: url=', this.eventSource?.url)
         this.notificationStore.isConnected = false
         this.stopHeartbeat()
         this.reconnect()
@@ -104,6 +108,13 @@ class SSEClient {
   handleMessage(data) {
     if (data.type === 'heartbeat') {
       console.debug('SSE: 收到心跳')
+      return
+    }
+
+    // 只处理没有专用事件监听器的一般消息
+    // review_complete, high_risk_warning, system_announcement, email_notification 有专门的处理方法
+    const handledTypes = ['review_complete', 'high_risk_warning', 'system_announcement', 'email_notification']
+    if (handledTypes.includes(data.type)) {
       return
     }
 

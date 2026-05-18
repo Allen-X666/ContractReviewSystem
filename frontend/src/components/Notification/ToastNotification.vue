@@ -28,7 +28,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, reactive } from 'vue'
 import { CircleCheck, WarningFilled, InfoFilled, Message, Close } from '@element-plus/icons-vue'
 
 const toasts = ref([])
@@ -55,7 +55,8 @@ const formatCountdown = (ms) => {
 
 const showToast = (options) => {
   const id = Date.now() + Math.random()
-  const toast = {
+  // 使用 reactive 让 remainingTime 变成响应式
+  const toast = reactive({
     id,
     type: options.type || 'info',
     title: options.title || '',
@@ -64,7 +65,7 @@ const showToast = (options) => {
     remainingTime: options.duration || DEFAULT_DURATION,
     timer: null,
     countdownInterval: null
-  }
+  })
 
   toast.countdownInterval = setInterval(() => {
     toast.remainingTime -= 100

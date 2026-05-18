@@ -35,23 +35,11 @@ export const useNotificationStore = defineStore('notification', () => {
   }
 
   const addNotification = (notification) => {
-    const config = notificationTypes[notification.type] || notificationTypes.system_announcement
-
-    ElNotification({
-      title: notification.title || config.title,
-      message: notification.message,
-      type: config.type,
-      duration: config.duration,
-      position: 'bottom-right',
-      showClose: true,
-      onClick: () => handleNotificationClick(notification),
-      onClose: () => removeNotification(notification.id)
-    })
-
+    // 只添加到通知列表，不显示ElNotification（由ToastNotification组件显示）
     notifications.value.unshift({
       id: notification.id || Date.now(),
       type: notification.type,
-      title: notification.title || config.title,
+      title: notification.title,
       message: notification.message,
       data: notification.data,
       isRead: false,

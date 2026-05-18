@@ -413,6 +413,10 @@ async function handleLogin() {
     ElMessage.success('登录成功')
     userStore.setToken(res.data.token)
     userStore.setUserInfo(res.data.userInfo)
+    // 登录成功后建立SSE连接
+    import('@/utils/sse').then(({ sseClient }) => {
+      sseClient.connect()
+    })
     router.push('/dashboard')
   } catch (error) {
     console.error('登录失败:', error)

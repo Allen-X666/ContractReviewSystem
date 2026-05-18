@@ -17,9 +17,9 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class GetUserSystemConfigUtils {
 
-    private StringRedisTemplate stringRedisTemplate;
-    private ObjectMapper objectMapper;
-    private AuthService authService;
+    private final StringRedisTemplate stringRedisTemplate;
+    private final ObjectMapper objectMapper;
+    private final AuthService authService;
 
     public Map<String, String> getUserSystemConfig(Integer userId) {
         String key = UserConstant.USER_NOTIFICATION_SETTINGS + userId;
