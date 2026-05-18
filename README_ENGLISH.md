@@ -30,6 +30,25 @@ The Contract Review AI Assistant is an enterprise legal compliance solution powe
 - Financial institution compliance checks
 - E-commerce platform merchant contract auditing
 
+## 📸 Screenshots
+
+<table>
+  <tr>
+    <td align="center"><b>Contract Management</b></td>
+    <td align="center"><b>Review History</b></td>
+  </tr>
+  <tr>
+    <td><img src="front/1.png" alt="Contract Management" width="100%"/></td>
+    <td><img src="front/2.png" alt="Review History" width="100%"/></td>
+  </tr>
+  <tr>
+    <td align="center" colspan="2"><b>System Settings</b></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><img src="front/3.png" alt="System Settings" width="50%"/></td>
+  </tr>
+</table>
+
 ## 🏗️ System Architecture
 
 ### Three-tier Architecture Design

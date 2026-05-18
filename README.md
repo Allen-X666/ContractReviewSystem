@@ -30,6 +30,25 @@
 - 金融机构合规检查
 - 电商平台商家合同审核
 
+## 📸 界面展示（部分）
+
+<table>
+  <tr>
+    <td align="center"><b>合同管理</b></td>
+    <td align="center"><b>审查历史</b></td>
+  </tr>
+  <tr>
+    <td><img src="front/1.png" alt="合同管理" width="100%"/></td>
+    <td><img src="front/2.png" alt="审查历史" width="100%"/></td>
+  </tr>
+  <tr>
+    <td align="center" colspan="2"><b>系统设置</b></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><img src="front/3.png" alt="系统设置" width="50%"/></td>
+  </tr>
+</table>
+
 ## 🏗️ 系统架构
 
 ### 三层架构设计
@@ -627,12 +646,12 @@ ci: CI/CD 相关改动
 ### 认证授权
 
 - **JWT Token**: 无状态认证，支持 Token 刷新
-- **RBAC 权限**: 基于角色的访问控制（管理员、法务、普通用户）
+- **RBAC 权限**: 基于角色的访问控制（管理员、普通用户）
 - **会话管理**: Redis 分布式会话，支持多设备登录
 
 ### 数据安全
 
-- **密码加密**: BCrypt 强哈希，自动加盐
+- **密码加密**: MD5 加盐加密，存储在数据库中
 - **SQL 防护**: MyBatis 参数化查询，防止 SQL 注入
 - **XSS 防护**: 输入输出过滤，富文本转义
 - **文件安全**: 类型检查、大小限制、病毒扫描接口
@@ -687,7 +706,7 @@ black app/
 ## 👥 联系方式
 
 - **项目维护者**: xjl
-- **问题反馈**: [GitHub Issues](https://github.com/your-repo/issues)
+- **问题反馈**: [GitHub Issues](https://github.com/xjl20041115/ContractReview/issues)
 - **邮箱**: xjl20041115@126.com
 
 ## 🙏 致谢
