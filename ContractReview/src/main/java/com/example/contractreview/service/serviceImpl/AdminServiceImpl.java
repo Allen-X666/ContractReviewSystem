@@ -563,13 +563,10 @@ public class AdminServiceImpl implements AdminService {
             log.info("准备发送系统公告SSE通知, noticeId: {}, title: {}, 当前在线连接数: {}", 
                     notice.getId(), notice.getTitle(), connectionCount);
             
-            if (connectionCount > 0) {
-                sseEmitterManager.sendToAll("system_announcement", buildAnnouncementSseData(notice));
-                log.info("系统公告SSE通知已广播, noticeId: {}, title: {}, 目标用户数: {}", 
-                        notice.getId(), notice.getTitle(), connectionCount);
-            } else {
-                log.warn("没有在线用户连接，跳过SSE广播, noticeId: {}", notice.getId());
-            }
+            // 不管有没有在线用户，都进行广播
+            sseEmitterManager.sendToAll("system_announcement", buildAnnouncementSseData(notice));
+            log.info("系统公告SSE通知已广播, noticeId: {}, title: {}, 目标用户数: {}", 
+                    notice.getId(), notice.getTitle(), connectionCount);
         } catch (Exception e) {
             log.error("发送系统公告SSE通知失败, noticeId: {}", notice.getId(), e);
         }
