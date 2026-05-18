@@ -4,6 +4,7 @@ import com.example.contractreview.client.FastApiClient;
 import com.example.contractreview.common.Result;
 import com.example.contractreview.constant.ContractConstant;
 import com.example.contractreview.constant.ReviewConstant;
+import com.example.contractreview.enums.NotificationType;
 import com.example.contractreview.enums.ReviewStatus;
 import com.example.contractreview.enums.RiskLevel;
 import com.example.contractreview.mapper.ContractMapper;
@@ -18,10 +19,14 @@ import com.example.contractreview.model.vo.RiskItemVO;
 import com.example.contractreview.model.vo.fastapi.FastApiResult;
 import com.example.contractreview.model.vo.fastapi.ReviewProgressVO;
 import com.example.contractreview.model.vo.fastapi.ReviewResultVO;
+import com.example.contractreview.service.AsyncMailService;
 import com.example.contractreview.service.PdfReportService;
 import com.example.contractreview.service.ReviewService;
+import com.example.contractreview.sse.SseEmitterManager;
 import com.example.contractreview.utils.GetContractNameUtils;
+import com.example.contractreview.utils.GetUserSystemConfigUtils;
 import com.example.contractreview.utils.TokenUtils;
+import com.example.contractreview.utils.UserEmailUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.pagehelper.PageHelper;
 import lombok.RequiredArgsConstructor;
@@ -60,8 +65,12 @@ public class ReviewServiceImpl implements ReviewService {
     private final StringRedisTemplate stringRedisTemplate;
     private final ObjectMapper objectMapper;
     private final GetContractNameUtils getContractNameUtils;
+    private final AsyncMailService asyncMailService;
+    private final UserEmailUtils userEmailUtils;
+    private final SseEmitterManager sseEmitterManager;
 
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(10);
+    private final GetUserSystemConfigUtils getUserSystemConfigUtils;
 
     /**
      * 启动审查
@@ -154,6 +163,27 @@ public class ReviewServiceImpl implements ReviewService {
 
                     // 如果审查完成或失败，关闭连接
                     if ("completed".equals(progress.getStatus()) || "failed".equals(progress.getStatus())) {
+                        Integer userId = tokenUtils.getUserId(authorization);
+                        userEmailUtils.userEmailUtils(userId, "合同审查完毕", "您的合同审查完毕，请返回系统查看详情。");
+
+                        // 发送SSE通知（审查完成）
+                        try {
+                            // 获取合同名称
+                            String contractName = getContractNameUtils.getContractName(reviewId);
+                            if (contractName != null) {
+                                sseEmitterManager.sendReviewCompleteNotification(
+                                        Long.valueOf(userId),
+                                        Long.valueOf(reviewId),
+                                        null,
+                                        contractName,
+                                        progress.getProgress()
+                                );
+                                log.info("审查完成SSE通知已发送, userId: {}, reviewId: {}", userId, reviewId);
+                            }
+                        } catch (Exception e) {
+                            log.error("发送审查完成SSE通知失败, reviewId: {}", reviewId, e);
+                        }
+
                         emitter.complete();
                         progressScheduler.shutdown();
                     }
@@ -216,6 +246,9 @@ public class ReviewServiceImpl implements ReviewService {
 
             enrichContractName(fastApiData);
             sortRisksByLevel(fastApiData.getRisks());
+
+            // 检测高风险并发送SSE通知
+            checkAndNotifyHighRisk(userId, reviewId, fastApiData);
 
             String key = ReviewConstant.REVIEW_RESULT_KEY + reviewId;
             stringRedisTemplate.opsForValue().set(key, objectMapper.writeValueAsString(fastApiData));
@@ -718,5 +751,50 @@ public class ReviewServiceImpl implements ReviewService {
                 .risks(risks)
                 .lawReferences(new ArrayList<>(lawMap.values()))
                 .build();
+    }
+
+    /**
+     * 检测高风险并发送SSE通知
+     *
+     * @param userId     用户ID
+     * @param reviewId   审查ID
+     * @param reviewResult 审查结果
+     */
+    private void checkAndNotifyHighRisk(Integer userId, Integer reviewId, ReviewResultVO reviewResult) {
+        try {
+            // 统计高风险数量
+            long highRiskCount = 0;
+            if (reviewResult.getRisks() != null) {
+                highRiskCount = reviewResult.getRisks().stream()
+                        .filter(risk -> "high".equalsIgnoreCase(risk.getLevel()))
+                        .count();
+            }
+
+            // 如果有高风险，发送SSE通知
+            if (highRiskCount > 0) {
+                Integer contractId = reviewResult.getContractId();
+                String contractName = reviewResult.getContractName();
+                if (contractName == null && contractId != null) {
+                    Contract contract = contractMapper.selectById(Long.valueOf(contractId));
+                    if (contract != null) {
+                        contractName = contract.getFileName();
+                    }
+                }
+
+                if (contractId != null && contractName != null) {
+                    sseEmitterManager.sendHighRiskWarningNotification(
+                            Long.valueOf(userId),
+                            Long.valueOf(reviewId),
+                            Long.valueOf(contractId),
+                            contractName,
+                            (int) highRiskCount
+                    );
+                    log.info("高风险预警SSE通知已发送, userId: {}, reviewId: {}, highRiskCount: {}",
+                            userId, reviewId, highRiskCount);
+                }
+            }
+        } catch (Exception e) {
+            log.error("检测高风险并发送通知失败, reviewId: {}", reviewId, e);
+        }
     }
 }

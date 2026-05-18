@@ -4,6 +4,7 @@ import com.example.contractreview.common.Result;
 import com.example.contractreview.common.ResultCode;
 import com.example.contractreview.common.exception.BusinessException;
 import com.example.contractreview.constant.UserConstant;
+import com.example.contractreview.enums.NotificationType;
 import com.example.contractreview.enums.UserRole;
 import com.example.contractreview.enums.UserStatus;
 import com.example.contractreview.mapper.AuthMapper;
@@ -56,6 +57,8 @@ public class AuthServiceImpl implements AuthService {
     private final ObjectMapper objectMapper;
     private final AsyncMailService asyncMailService;
     private final RateLimitService rateLimitService;
+    private final UserEmailUtils userEmailUtils;
+    private final GetUserSystemConfigUtils getUserSystemConfigUtils;
 
     /**
      * 用户注册
@@ -520,8 +523,7 @@ public class AuthServiceImpl implements AuthService {
 
     // 获取用户信息
     @Override
-    public Result<UserVO> getUserInfo(String authorization) throws JsonProcessingException {
-        Integer userId = tokenUtils.getUserId(authorization);
+    public Result<UserVO> getUserInfo(Integer userId) throws JsonProcessingException {
         if (userId != null) {
             // 先从Redis中获取用户信息
             String userInfoKey = UserConstant.USER_INFO + userId;
@@ -547,7 +549,7 @@ public class AuthServiceImpl implements AuthService {
 
     // 修改密码
     @Override
-    public Result<String> changePassword(String authorization, @Valid ChangePasswordDTO changePasswordDTO) {
+    public Result<String> changePassword(String authorization, @Valid ChangePasswordDTO changePasswordDTO) throws JsonProcessingException {
         // 获取用户id
         Integer userId = tokenUtils.getUserId(authorization);
         if (userId != null) {
@@ -560,6 +562,7 @@ public class AuthServiceImpl implements AuthService {
             }
             user.setPassword(MD5Utils.md5(changePasswordDTO.getNewPassword()));
             authMapper.update(user);
+            userEmailUtils.userEmailUtils(userId, "密码修改成功", "密码修改成功，请返回系统登录。");
             return Result.success("密码修改成功");
         }
         return Result.error("密码修改失败");

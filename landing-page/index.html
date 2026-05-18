@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能合同审查助手 - AI驱动的企业法务合规解决方案</title>
+    <meta name="description" content="智能合同审查助手是一款基于人工智能的企业法务合规解决方案，通过AI自动审查合同文档，识别风险条款、缺失条款、违规条款，输出专业审查报告。">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="navbar" id="navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <div class="logo">
+                    <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect width="40" height="40" rx="8" fill="url(#logo-gradient)"/>
+                        <path d="M12 14h16M12 20h16M12 26h10" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+                        <defs>
+                            <linearGradient id="logo-gradient" x1="0" y1="0" x2="40" y2="40">
+                                <stop stop-color="#1e3a5f"/>
+                                <stop offset="1" stop-color="#2d5a87"/>
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                </div>
+                <span class="brand-text">智能合同审查助手</span>
+            </div>
+            <div class="nav-menu" id="navMenu">
+                <a href="#features" class="nav-link">核心功能</a>
+                <a href="#workflow" class="nav-link">工作流程</a>
+                <a href="#advantages" class="nav-link">技术优势</a>
+                <a href="#scenarios" class="nav-link">适用场景</a>
+            </div>
+            <div class="nav-actions">
+                <a href="#contact" class="btn btn-primary">联系我们</a>
+            </div>
+            <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="菜单">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-bg">
+            <div class="gradient-orb orb-1"></div>
+            <div class="gradient-orb orb-2"></div>
+            <div class="grid-pattern"></div>
+        </div>
+        <div class="container">
+            <div class="hero-content">
+                <div class="hero-badge">
+                    <span class="badge-icon">🚀</span>
+                    <span>AI 驱动的法务革命</span>
+                </div>
+                <h1 class="hero-title">
+                    让合同审查
+                    <span class="gradient-text">更智能、更高效、更安全</span>
+                </h1>
+                <p class="hero-description">
+                    基于先进的人工智能技术，自动识别合同风险条款、缺失条款和违规内容，
+                    关联相关法律法规，输出专业审查报告，帮助企业降低法务风险，提升合规效率。
+                </p>
+                <div class="hero-actions">
+                    <a href="#contact" class="btn btn-primary btn-large">
+                        <span>预约产品演示</span>
+                        <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M5 12h14M12 5l7 7-7 7"/>
+                        </svg>
+                    </a>
+                    <a href="#features" class="btn btn-secondary btn-large">了解更多</a>
+                </div>
+                <div class="hero-stats">
+                    <div class="stat-item">
+                        <div class="stat-number">95%</div>
+                        <div class="stat-label">风险识别准确率</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number">10倍</div>
+                        <div class="stat-label">审查效率提升</div>
+                    </div>
+                </div>
+            </div>
+            <div class="hero-visual">
+                <div class="dashboard-preview">
+                    <div class="preview-header">
+                        <div class="preview-dots">
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                        </div>
+                        <div class="preview-title">合同审查报告</div>
+                    </div>
+                    <div class="preview-content">
+                        <div class="risk-card high">
+                            <div class="risk-icon">⚠️</div>
+                            <div class="risk-info">
+                                <div class="risk-title">高风险：违约责任条款缺失</div>
+                                <div class="risk-desc">建议补充违约金计算方式和上限条款</div>
+                            </div>
+                        </div>
+                        <div class="risk-card medium">
+                            <div class="risk-icon">⚡</div>
+                            <div class="risk-info">
+                                <div class="risk-title">中风险：争议解决条款不明确</div>
+                                <div class="risk-desc">建议明确约定仲裁机构或管辖法院</div>
+                            </div>
+                        </div>
+                        <div class="risk-card low">
+                            <div class="risk-icon">ℹ️</div>
+                            <div class="risk-info">
+                                <div class="risk-title">低风险：付款方式可优化</div>
+                                <div class="risk-desc">建议增加分期付款的具体时间节点</div>
+                            </div>
+                        </div>
+                        <div class="risk-card none">
+                            <div class="risk-icon">✅</div>
+                            <div class="risk-info">
+                                <div class="risk-title">无风险：保密条款完整</div>
+                                <div class="risk-desc">保密义务、期限、违约责任齐全</div>
+                            </div>
+                        </div>
+                        <div class="law-reference">
+                            <div class="law-title">📚 关联法规</div>
+                            <div class="law-items">
+                                <span class="law-tag">《合同法》第1条</span>
+                                <span class="law-tag">《民法典》第1条</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 核心功能 -->
+    <section class="features" id="features">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-tag">核心功能</span>
+                <h2 class="section-title">全方位合同审查解决方案</h2>
+                <p class="section-desc">从文档解析到风险识别，从法规关联到报告生成，提供端到端的智能审查服务</p>
+            </div>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 48 48" fill="none">
+                            <rect x="8" y="6" width="32" height="36" rx="4" stroke="currentColor" stroke-width="2"/>
+                            <path d="M16 16h16M16 24h12M16 32h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            <circle cx="34" cy="32" r="6" fill="currentColor" fill-opacity="0.1" stroke="currentColor" stroke-width="2"/>
+                            <path d="M32 32l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <h3 class="feature-title">智能合同审查</h3>
+                    <p class="feature-desc">自动解析 PDF/DOCX 合同文档，深度识别风险条款、缺失条款和违规内容，确保合同合规性。</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 48 48" fill="none">
+                            <circle cx="20" cy="20" r="12" stroke="currentColor" stroke-width="2"/>
+                            <path d="M28 28l10 10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            <path d="M16 20h8M20 16v8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                    <h3 class="feature-title">法律知识库</h3>
+                    <p class="feature-desc">RAG 检索增强技术，自动关联相关法律法规和司法解释，为审查结果提供专业法律依据。</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 48 48" fill="none">
+                            <path d="M8 12h32v24H8z" stroke="currentColor" stroke-width="2" rx="2"/>
+                            <path d="M16 20l6 6 10-10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M8 18h32" stroke="currentColor" stroke-width="2"/>
+                        </svg>
+                    </div>
+                    <h3 class="feature-title">实时进度推送</h3>
+                    <p class="feature-desc">SSE 技术实现审查进度实时更新，随时掌握审查状态，提升用户体验和工作效率。</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 48 48" fill="none">
+                            <path d="M12 8h24v32H12z" stroke="currentColor" stroke-width="2" rx="2"/>
+                            <path d="M18 16h12M18 24h12M18 32h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            <circle cx="36" cy="36" r="8" fill="currentColor" fill-opacity="0.1" stroke="currentColor" stroke-width="2"/>
+                            <path d="M34 36h4M36 34v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                    <h3 class="feature-title">生成审查报告</h3>
+                    <p class="feature-desc">自动生成 PDF 格式的专业审查报告。</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 48 48" fill="none">
+                            <circle cx="24" cy="24" r="18" stroke="currentColor" stroke-width="2"/>
+                            <circle cx="24" cy="20" r="6" stroke="currentColor" stroke-width="2"/>
+                            <path d="M14 38c0-5.523 4.477-10 10-10s10 4.477 10 10" stroke="currentColor" stroke-width="2"/>
+                        </svg>
+                    </div>
+                    <h3 class="feature-title">智能客服</h3>
+                    <p class="feature-desc">集成 AI 聊天助手，7×24小时解答法律相关问题，提供专业的法律咨询服务，及系统咨询服务。</p>
+                    <p class="feature-desc">升级为Agent，集成Tool工具，支持AI查询服务，AI下载文件服务</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 48 48" fill="none">
+                            <rect x="6" y="10" width="36" height="28" rx="4" stroke="currentColor" stroke-width="2"/>
+                            <circle cx="18" cy="24" r="4" stroke="currentColor" stroke-width="2"/>
+                            <path d="M28 20h8M28 28h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                    <h3 class="feature-title">权限管理</h3>
+                    <p class="feature-desc">完整的 RBAC 权限控制系统，支持多角色、多部门管理，保障企业数据安全。</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 工作流程 -->
+    <section class="workflow" id="workflow">
+        <div class="container">
+            <div class="section-header light">
+                <span class="section-tag">工作流程</span>
+                <h2 class="section-title">简单四步，完成专业审查</h2>
+                <p class="section-desc">简洁高效的工作流程，让您轻松上手，快速获得专业审查结果</p>
+            </div>
+            <div class="workflow-steps">
+                <div class="workflow-step">
+                    <div class="step-number">01</div>
+                    <div class="step-content">
+                        <div class="step-icon">
+                            <svg viewBox="0 0 48 48" fill="none">
+                                <path d="M24 8v24M24 8l-8 8M24 8l8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <rect x="8" y="32" width="32" height="8" rx="2" stroke="currentColor" stroke-width="2"/>
+                            </svg>
+                        </div>
+                        <h3 class="step-title">上传合同</h3>
+                        <p class="step-desc">支持 PDF、DOCX 等多种格式，一键上传合同文档，系统自动解析内容</p>
+                    </div>
+                </div>
+                <div class="workflow-arrow">
+                    <svg viewBox="0 0 48 24" fill="none">
+                        <path d="M4 12h36M36 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </div>
+                <div class="workflow-step">
+                    <div class="step-number">02</div>
+                    <div class="step-content">
+                        <div class="step-icon">
+                            <svg viewBox="0 0 48 48" fill="none">
+                                <circle cx="24" cy="24" r="16" stroke="currentColor" stroke-width="2"/>
+                                <path d="M24 16v8l6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </div>
+                        <h3 class="step-title">AI 审查</h3>
+                        <p class="step-desc">AI 自动分析合同条款，识别风险点，关联相关法律法规，实时显示进度</p>
+                    </div>
+                </div>
+                <div class="workflow-arrow">
+                    <svg viewBox="0 0 48 24" fill="none">
+                        <path d="M4 12h36M36 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </div>
+                <div class="workflow-step">
+                    <div class="step-number">03</div>
+                    <div class="step-content">
+                        <div class="step-icon">
+                            <svg viewBox="0 0 48 48" fill="none">
+                                <path d="M14 12h20v28H14z" stroke="currentColor" stroke-width="2" rx="2"/>
+                                <path d="M20 20h8M20 28h8M20 36h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                <circle cx="34" cy="14" r="6" fill="currentColor"/>
+                                <path d="M32 14l2 2 4-4" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </div>
+                        <h3 class="step-title">查看结果</h3>
+                        <p class="step-desc">直观展示风险等级、问题详情和法规依据，支持在线预览。</p>
+                    </div>
+                </div>
+                <div class="workflow-arrow">
+                    <svg viewBox="0 0 48 24" fill="none">
+                        <path d="M4 12h36M36 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </div>
+                <div class="workflow-step">
+                    <div class="step-number">04</div>
+                    <div class="step-content">
+                        <div class="step-icon">
+                            <svg viewBox="0 0 48 48" fill="none">
+                                <path d="M24 6l4 10h10l-8 6 3 10-9-7-9 7 3-10-8-6h10z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                            </svg>
+                        </div>
+                        <h3 class="step-title">导出报告</h3>
+                        <p class="step-desc">一键生成 PDF 专业审查报告，方便存档和分享</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 技术优势 -->
+    <section class="advantages" id="advantages">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-tag">技术优势</span>
+                <h2 class="section-title">三层架构，稳定可靠</h2>
+                <p class="section-desc">采用业界领先的技术架构，确保系统高性能、高可用、易扩展</p>
+            </div>
+            <div class="architecture-diagram">
+                <div class="arch-layer frontend">
+                    <div class="arch-icon">🎨</div>
+                    <div class="arch-info">
+                        <h3>前端层</h3>
+                        <p>Vue 3 + Element Plus</p>
+                    </div>
+                    <div class="arch-tags">
+                        <span>响应式设计</span>
+                        <span>现代化UI</span>
+                    </div>
+                </div>
+                <div class="arch-connector">
+                    <div class="connector-line"></div>
+                    <div class="connector-arrow">↓</div>
+                </div>
+                <div class="arch-layer gateway">
+                    <div class="arch-icon">🔒</div>
+                    <div class="arch-info">
+                        <h3>API 网关层</h3>
+                        <p>Spring Boot</p>
+                    </div>
+                    <div class="arch-tags">
+                        <span>统一认证</span>
+                        <span>API 路由</span>
+                    </div>
+                </div>
+                <div class="arch-connector">
+                    <div class="connector-line"></div>
+                    <div class="connector-arrow">↓</div>
+                </div>
+                <div class="arch-layer ai">
+                    <div class="arch-icon">🤖</div>
+                    <div class="arch-info">
+                        <h3>AI 服务层</h3>
+                        <p>FastAPI + LangChain</p>
+                    </div>
+                    <div class="arch-tags">
+                        <span>RAG 检索</span>
+                        <span>智能推理</span>
+                    </div>
+                </div>
+            </div>
+            <div class="tech-stack">
+                <div class="tech-category">
+                    <h4>前端技术</h4>
+                    <div class="tech-items">
+                        <span class="tech-item">Vue 3</span>
+                        <span class="tech-item">Element Plus</span>
+                        <span class="tech-item">Vite</span>
+                        <span class="tech-item">Pinia</span>
+                    </div>
+                </div>
+                <div class="tech-category">
+                    <h4>后端技术</h4>
+                    <div class="tech-items">
+                        <span class="tech-item">Spring Boot</span>
+                        <span class="tech-item">MyBatis</span>
+                        <span class="tech-item">MySQL</span>
+                        <span class="tech-item">Redis</span>
+                    </div>
+                </div>
+                <div class="tech-category">
+                    <h4>AI 技术</h4>
+                    <div class="tech-items">
+                        <span class="tech-item">FastAPI</span>
+                        <span class="tech-item">LangChain</span>
+                        <span class="tech-item">DashScope</span>
+                        <span class="tech-item">RAG</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 适用场景 -->
+    <section class="scenarios" id="scenarios">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-tag">适用场景</span>
+                <h2 class="section-title">多行业解决方案</h2>
+                <p class="section-desc">适用于各类企业和机构的合同审查需求，助力合规管理</p>
+            </div>
+            <div class="scenarios-grid">
+                <div class="scenario-card">
+                    <div class="scenario-icon">🏢</div>
+                    <h3>企业法务部门</h3>
+                    <p>批量审查采购合同、销售合同、劳动合同等，提升法务团队工作效率，降低合规风险。</p>
+                    <ul class="scenario-features">
+                        <li>批量合同处理</li>
+                        <li>风险预警机制</li>
+                        <li>审查历史追踪</li>
+                    </ul>
+                </div>
+                <div class="scenario-card">
+                    <div class="scenario-icon">⚖️</div>
+                    <h3>律师事务所</h3>
+                    <p>辅助律师进行合同分析，快速识别关键条款和风险点，提高法律服务质量和效率。</p>
+                    <ul class="scenario-features">
+                        <li>专业法规关联</li>
+                        <li>条款对比分析</li>
+                        <li>报告自动生成</li>
+                    </ul>
+                </div>
+                <div class="scenario-card">
+                    <div class="scenario-icon">🏦</div>
+                    <h3>金融机构</h3>
+                    <p>审查贷款合同、担保合同、理财协议等金融文档，确保合规性，防范金融风险。</p>
+                    <ul class="scenario-features">
+                        <li>合规性检查</li>
+                        <li>风险评级体系</li>
+                        <li>审计日志记录</li>
+                    </ul>
+                </div>
+                <div class="scenario-card">
+                    <div class="scenario-icon">🛒</div>
+                    <h3>电商平台</h3>
+                    <p>审核商家入驻协议、平台服务协议等，保障平台合规运营，维护消费者权益。</p>
+                    <ul class="scenario-features">
+                        <li>模板化管理</li>
+                        <li>快速批量审核</li>
+                        <li>智能客服支持</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="cta" id="contact">
+        <div class="container">
+            <div class="cta-content">
+                <h2 class="cta-title">开启智能合同审查新时代</h2>
+                <p class="cta-desc">联系我们，获取专属解决方案，让 AI 助力企业合规管理</p>
+                <div class="cta-actions">
+                    <a href="mailto:contact@contract-ai.com" class="btn btn-white btn-large">预约产品演示</a>
+                    <a href="mailto:contact@contract-ai.com" class="btn btn-outline-white btn-large">咨询详情</a>
+                </div>
+                <div class="cta-features">
+                    <span>✓ 专业团队支持</span>
+                    <span>✓ 定制化方案</span>
+                    <span>✓ 全程技术保障</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 页脚 -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-brand">
+                    <div class="logo">
+                        <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect width="40" height="40" rx="8" fill="url(#logo-gradient-footer)"/>
+                            <path d="M12 14h16M12 20h16M12 26h10" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+                            <defs>
+                                <linearGradient id="logo-gradient-footer" x1="0" y1="0" x2="40" y2="40">
+                                    <stop stop-color="#1e3a5f"/>
+                                    <stop offset="1" stop-color="#2d5a87"/>
+                                </linearGradient>
+                            </defs>
+                        </svg>
+                    </div>
+                    <h3>智能合同审查助手</h3>
+                    <p>AI 驱动的企业法务合规解决方案，让合同审查更智能、更高效、更安全。</p>
+                </div>
+                <div class="footer-links">
+                    <h4>产品功能</h4>
+                    <ul>
+                        <li><a href="#features">智能审查</a></li>
+                        <li><a href="#features">法律知识库</a></li>
+                        <li><a href="#features">报告生成</a></li>
+                        <li><a href="#features">智能客服</a></li>
+                    </ul>
+                </div>
+                <div class="footer-links">
+                    <h4>适用场景</h4>
+                    <ul>
+                        <li><a href="#scenarios">企业法务</a></li>
+                        <li><a href="#scenarios">律师事务所</a></li>
+                        <li><a href="#scenarios">金融机构</a></li>
+                        <li><a href="#scenarios">电商平台</a></li>
+                    </ul>
+                </div>
+                <div class="footer-links">
+                    <h4>联系我们</h4>
+                    <ul>
+                        <li><a href="mailto:contact@contract-ai.com">商务合作</a></li>
+                        <li><a href="mailto:support@contract-ai.com">技术支持</a></li>
+                        <li><a href="#">产品手册</a></li>
+                        <li><a href="#">隐私政策</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2026 智能合同审查助手. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>

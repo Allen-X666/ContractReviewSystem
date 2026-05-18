@@ -17,6 +17,7 @@ import com.example.contractreview.model.vo.NoticeVO;
 import com.example.contractreview.client.FastApiClient;
 import com.example.contractreview.model.vo.SelectSystemDocumentListVO;
 import com.example.contractreview.service.AdminService;
+import com.example.contractreview.sse.SseEmitterManager;
 import com.example.contractreview.utils.LawFileParser;
 import com.example.contractreview.utils.TokenUtils;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -61,6 +62,7 @@ public class AdminServiceImpl implements AdminService {
     private final TokenUtils tokenUtils;
     private final ObjectMapper objectMapper;
     private final FastApiClient fastApiClient;
+    private final SseEmitterManager sseEmitterManager;
 
     /**
      * 获取用户列表
@@ -555,6 +557,14 @@ public class AdminServiceImpl implements AdminService {
             return Result.error(ResultCode.ERROR.getCode(), "公告发布失败");
         }
 
+        // 发送SSE系统公告通知给所有在线用户
+        try {
+            sseEmitterManager.sendToAll("system_announcement", buildAnnouncementSseData(notice));
+            log.info("系统公告SSE通知已广播, noticeId: {}, title: {}", notice.getId(), notice.getTitle());
+        } catch (Exception e) {
+            log.error("发送系统公告SSE通知失败, noticeId: {}", notice.getId(), e);
+        }
+
         log.info("公告发布成功, noticeId: {}, userId: {}, title: {}", notice.getId(), userId, notice.getTitle());
         return Result.success("发布成功", notice);
     }
@@ -874,5 +884,22 @@ public class AdminServiceImpl implements AdminService {
             case "gif" -> "image/gif";
             default -> "application/octet-stream";
         };
+    }
+
+    /**
+     * 构建系统公告SSE通知数据
+     *
+     * @param notice 公告实体
+     * @return SSE通知数据
+     */
+    private Map<String, Object> buildAnnouncementSseData(Notice notice) {
+        Map<String, Object> data = new HashMap<>();
+        data.put("type", "system_announcement");
+        data.put("noticeId", notice.getId());
+        data.put("title", notice.getTitle());
+        data.put("content", notice.getContent());
+        data.put("publishTime", notice.getPublishTime());
+        data.put("timestamp", LocalDateTime.now());
+        return data;
     }
 }

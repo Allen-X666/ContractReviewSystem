@@ -27,7 +27,9 @@ public class UserConstant {
 
     // 用户登录token映射（用于单点登录，一个用户只能在一个设备登录）
     public static final String USER_TOKEN_MAP = "user:token:";  // + userId
+    // 用户信息
     public static final String USER_INFO = "user:info:";  // + userId
+    // 用户列表
     public static final String USER_List = "user:list:";
 
     // 用户通知设置

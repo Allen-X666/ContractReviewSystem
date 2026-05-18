@@ -38,14 +38,14 @@
     <td align="center"><b>审查历史</b></td>
   </tr>
   <tr>
-    <td><img src="front/1.png" alt="合同管理" width="100%"/></td>
-    <td><img src="front/2.png" alt="审查历史" width="100%"/></td>
+    <td><img src="./front/1.png" alt="合同管理" width="100%"/></td>
+    <td><img src="./front/2.png" alt="审查历史" width="100%"/></td>
   </tr>
   <tr>
     <td align="center" colspan="2"><b>系统设置</b></td>
   </tr>
   <tr>
-    <td colspan="2" align="center"><img src="front/3.png" alt="系统设置" width="50%"/></td>
+    <td colspan="2" align="center"><img src="./front/3.png" alt="系统设置" width="50%"/></td>
   </tr>
 </table>
 

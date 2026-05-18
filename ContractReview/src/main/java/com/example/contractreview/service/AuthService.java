@@ -31,10 +31,10 @@ public interface AuthService {
     Result<Void> logout(String token);
 
     // 获取用户信息
-    Result<UserVO> getUserInfo(String authorization) throws JsonProcessingException;
+    Result<UserVO> getUserInfo(Integer userId) throws JsonProcessingException;
 
     // 修改密码
-    Result<String> changePassword(String authorization, @Valid ChangePasswordDTO changePasswordDTO);
+    Result<String> changePassword(String authorization, @Valid ChangePasswordDTO changePasswordDTO) throws JsonProcessingException;
 
     // 刷新Token
     Result<LoginVO> refreshToken(String authorization);

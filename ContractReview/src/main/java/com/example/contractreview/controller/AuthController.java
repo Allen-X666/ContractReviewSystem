@@ -8,6 +8,7 @@ import com.example.contractreview.model.vo.LoginVO;
 import com.example.contractreview.model.vo.RegisterVO;
 import com.example.contractreview.model.vo.UserVO;
 import com.example.contractreview.service.AuthService;
+import com.example.contractreview.utils.TokenUtils;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -24,6 +25,7 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final AuthService authService;
+    private final TokenUtils tokenUtils;
 
     /**
      * 用户注册
@@ -76,7 +78,8 @@ public class AuthController {
     @GetMapping("/user-info")
     @Operation(summary = "获取用户信息")
     public Result<UserVO> getUserInfo(@RequestHeader("Authorization") String authorization) throws JsonProcessingException {
-        return authService.getUserInfo(authorization);
+        Integer userId = tokenUtils.getUserId(authorization);
+        return authService.getUserInfo(userId);
     }
 
     /**

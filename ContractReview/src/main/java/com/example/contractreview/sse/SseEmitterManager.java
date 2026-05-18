@@ -1,10 +1,14 @@
 package com.example.contractreview.sse;
 
+import com.example.contractreview.enums.NotificationType;
+import lombok.Builder;
+import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -170,5 +174,90 @@ public class SseEmitterManager {
      */
     public boolean isConnected(Long userId) {
         return emitters.containsKey(userId);
+    }
+
+    /**
+     * 发送审查完成通知
+     *
+     * @param userId     用户ID
+     * @param reviewId   审查ID
+     * @param contractId 合同ID
+     * @param contractName 合同名称
+     * @param score      评分
+     * @return 是否发送成功
+     */
+    public boolean sendReviewCompleteNotification(Long userId, Long reviewId, Long contractId, 
+                                                   String contractName, Integer score) {
+        NotificationData data = NotificationData.builder()
+                .type(NotificationType.REVIEW_COMPLETE)
+                .title("审查完成")
+                .message(String.format("合同《%s》审查已完成，综合评分：%d分", contractName, score))
+                .reviewId(reviewId)
+                .contractId(contractId)
+                .contractName(contractName)
+                .score(score)
+                .timestamp(LocalDateTime.now())
+                .build();
+        return sendToUser(userId, "review_complete", data);
+    }
+
+    /**
+     * 发送高风险预警通知
+     *
+     * @param userId       用户ID
+     * @param reviewId     审查ID
+     * @param contractId   合同ID
+     * @param contractName 合同名称
+     * @param riskCount    高风险数量
+     * @return 是否发送成功
+     */
+    public boolean sendHighRiskWarningNotification(Long userId, Long reviewId, Long contractId,
+                                                    String contractName, Integer riskCount) {
+        NotificationData data = NotificationData.builder()
+                .type(NotificationType.HIGH_RISK_WARNING)
+                .title("高风险预警")
+                .message(String.format("合同《%s》检测到 %d 个高风险项，请重点关注", contractName, riskCount))
+                .reviewId(reviewId)
+                .contractId(contractId)
+                .contractName(contractName)
+                .riskCount(riskCount)
+                .timestamp(LocalDateTime.now())
+                .build();
+        return sendToUser(userId, "high_risk_warning", data);
+    }
+
+    /**
+     * 发送系统公告通知
+     *
+     * @param userId  用户ID
+     * @param title   公告标题
+     * @param content 公告内容
+     * @return 是否发送成功
+     */
+    public boolean sendSystemAnnouncement(Long userId, String title, String content) {
+        NotificationData data = NotificationData.builder()
+                .type(NotificationType.SYSTEM_ANNOUNCEMENT)
+                .title(title)
+                .message(content)
+                .timestamp(LocalDateTime.now())
+                .build();
+        return sendToUser(userId, "system_announcement", data);
+    }
+
+    /**
+     * 通知数据对象
+     */
+    @Data
+    @Builder
+    public static class NotificationData {
+        private NotificationType type;
+        private String title;
+        private String message;
+        private Long reviewId;
+        private Long contractId;
+        private String contractName;
+        private Integer score;
+        private Integer riskCount;
+        private LocalDateTime timestamp;
     }
 }
