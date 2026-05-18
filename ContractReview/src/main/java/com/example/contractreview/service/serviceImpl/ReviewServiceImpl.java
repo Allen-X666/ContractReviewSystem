@@ -169,6 +169,10 @@ public class ReviewServiceImpl implements ReviewService {
                             // 获取合同名称
                             String contractName = getContractNameUtils.getContractName(reviewId);
                             if (contractName != null) {
+                                int connectionCount = sseEmitterManager.getConnectionCount();
+                                log.info("准备发送审查完成SSE通知, userId: {}, reviewId: {}, 当前在线连接数: {}",
+                                        userId, reviewId, connectionCount);
+                                
                                 sseEmitterManager.sendReviewCompleteNotification(
                                         Long.valueOf(userId),
                                         Long.valueOf(reviewId),
@@ -176,7 +180,8 @@ public class ReviewServiceImpl implements ReviewService {
                                         contractName,
                                         progress.getProgress()
                                 );
-                                log.info("审查完成SSE通知已发送, userId: {}, reviewId: {}", userId, reviewId);
+                                log.info("审查完成SSE通知已发送, userId: {}, reviewId: {}, 目标用户数: {}", 
+                                        userId, reviewId, connectionCount);
                             }
                         } catch (Exception e) {
                             log.error("发送审查完成SSE通知失败, reviewId: {}", reviewId, e);
@@ -780,6 +785,10 @@ public class ReviewServiceImpl implements ReviewService {
                 }
 
                 if (contractId != null && contractName != null) {
+                    int connectionCount = sseEmitterManager.getConnectionCount();
+                    log.info("准备发送高风险预警SSE通知, userId: {}, reviewId: {}, 当前在线连接数: {}",
+                            userId, reviewId, connectionCount);
+                    
                     sseEmitterManager.sendHighRiskWarningNotification(
                             Long.valueOf(userId),
                             Long.valueOf(reviewId),
@@ -787,8 +796,8 @@ public class ReviewServiceImpl implements ReviewService {
                             contractName,
                             (int) highRiskCount
                     );
-                    log.info("高风险预警SSE通知已发送, userId: {}, reviewId: {}, highRiskCount: {}",
-                            userId, reviewId, highRiskCount);
+                    log.info("高风险预警SSE通知已发送, userId: {}, reviewId: {}, highRiskCount: {}, 目标用户数: {}",
+                            userId, reviewId, highRiskCount, connectionCount);
                 }
             }
         } catch (Exception e) {
