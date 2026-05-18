@@ -42,7 +42,11 @@ class SSEClient {
 
     this.disconnect()
 
-    const sseUrl = `${this.baseUrl}/api/notifications/stream?token=${token}`
+    // 移除 Bearer 前缀，后端会自动添加
+    const cleanToken = token.replace('Bearer ', '')
+    // 注意：后端配置了 context-path: /api，所以路径是 /api/notifications/stream
+    // 开发环境直接访问后端，不走 Vite 代理
+    const sseUrl = `http://localhost:8080/api/notifications/stream?token=${encodeURIComponent(cleanToken)}`
 
     try {
       this.eventSource = new EventSource(sseUrl)
