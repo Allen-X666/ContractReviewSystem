@@ -2,9 +2,10 @@ package com.example.contractreview.utils;
 
 import com.example.contractreview.common.Result;
 import com.example.contractreview.constant.UserConstant;
+import com.example.contractreview.mapper.AuthMapper;
+import com.example.contractreview.model.User;
 import com.example.contractreview.model.vo.GetNotificationSettings;
 import com.example.contractreview.model.vo.UserVO;
-import com.example.contractreview.service.AuthService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -19,7 +20,7 @@ public class GetUserSystemConfigUtils {
 
     private final StringRedisTemplate stringRedisTemplate;
     private final ObjectMapper objectMapper;
-    private final AuthService authService;
+    private final AuthMapper authMapper;
 
     public Map<String, String> getUserSystemConfig(Integer userId) {
         String key = UserConstant.USER_NOTIFICATION_SETTINGS + userId;
@@ -45,7 +46,8 @@ public class GetUserSystemConfigUtils {
             UserVO userVO = objectMapper.readValue(cacheUserInfo, UserVO.class);
             return userVO.getEmail();
         }
-        Result<UserVO> userInfo = authService.getUserInfo(userId);
-        return userInfo.getData().getEmail();
+        // 使用 AuthMapper 直接查询，避免循环依赖
+        User user = authMapper.selectById(userId);
+        return user != null ? user.getEmail() : null;
     }
 }
