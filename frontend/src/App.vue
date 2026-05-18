@@ -1,6 +1,7 @@
 <template>
   <router-view />
   <ToastNotification ref="toastRef" v-if="userStore.isLoggedIn" />
+  <GlobalNotification v-if="userStore.isLoggedIn" />
 </template>
 
 <script setup>
@@ -8,6 +9,7 @@ import { onMounted, ref, watch } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { useTokenRefresh } from '@/composables/useTokenRefresh'
 import ToastNotification from '@/components/Notification/ToastNotification.vue'
+import GlobalNotification from '@/components/Notification/GlobalNotification.vue'
 import { setToastInstance } from '@/utils/sse'
 
 const userStore = useUserStore()
