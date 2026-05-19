@@ -1,9 +1,8 @@
 package com.example.contractreview.utils;
 
-import com.example.contractreview.common.Result;
 import com.example.contractreview.constant.UserConstant;
 import com.example.contractreview.mapper.AuthMapper;
-import com.example.contractreview.model.User;
+import com.example.contractreview.model.entity.User;
 import com.example.contractreview.model.vo.GetNotificationSettings;
 import com.example.contractreview.model.vo.UserVO;
 import com.fasterxml.jackson.core.JsonProcessingException;

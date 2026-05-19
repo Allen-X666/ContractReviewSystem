@@ -4,6 +4,7 @@ import com.example.contractreview.client.FastApiClient;
 import com.example.contractreview.common.Result;
 import com.example.contractreview.constant.ContractConstant;
 import com.example.contractreview.constant.ReviewConstant;
+import com.example.contractreview.enums.NotificationType;
 import com.example.contractreview.enums.ReviewStatus;
 import com.example.contractreview.enums.RiskLevel;
 import com.example.contractreview.mapper.ContractMapper;
@@ -164,29 +165,38 @@ public class ReviewServiceImpl implements ReviewService {
                         Integer userId = tokenUtils.getUserId(authorization);
                         userEmailUtils.userEmailUtils(userId, "合同审查完毕", "您的合同审查完毕，请返回系统查看详情。");
 
-                        // 发送SSE通知（审查完成）
-                        try {
-                            // 获取合同名称
-                            String contractName = getContractNameUtils.getContractName(reviewId);
-                            if (contractName != null) {
-                                int connectionCount = sseEmitterManager.getConnectionCount();
-                                log.info("准备发送审查完成SSE通知, userId: {}, reviewId: {}, 当前在线连接数: {}",
-                                        userId, reviewId, connectionCount);
-                                
-                                sseEmitterManager.sendReviewCompleteNotification(
-                                        Long.valueOf(userId),
-                                        Long.valueOf(reviewId),
-                                        null,
-                                        contractName,
-                                        progress.getProgress()
-                                );
-                                log.info("审查完成SSE通知已发送, userId: {}, reviewId: {}, 目标用户数: {}", 
-                                        userId, reviewId, connectionCount);
-                            }
-                        } catch (Exception e) {
-                            log.error("发送审查完成SSE通知失败, reviewId: {}", reviewId, e);
-                        }
+                        Map<String, String> userSystemConfig = getUserSystemConfigUtils.getUserSystemConfig(userId);
+                        String message = userSystemConfig.get("message");
+                        if (message.equals("获取用户系统配置成功")) {
+                            String reviewComplete = userSystemConfig.get("reviewComplete");
+                            if (reviewComplete.equals("true")) {
+                                log.info("开始发送审查完成SSE通知");
+                                // 发送SSE通知（审查完成）
+                                try {
+                                    // 获取合同名称
+                                    String contractName = getContractNameUtils.getContractName(reviewId);
+                                    if (contractName != null) {
+                                        int connectionCount = sseEmitterManager.getConnectionCount();
+                                        log.info("准备发送审查完成SSE通知, userId: {}, reviewId: {}, 当前在线连接数: {}",
+                                                userId, reviewId, connectionCount);
 
+                                        sseEmitterManager.sendReviewCompleteNotification(
+                                                Long.valueOf(userId),
+                                                Long.valueOf(reviewId),
+                                                null,
+                                                contractName,
+                                                progress.getProgress()
+                                        );
+                                        log.info("审查完成SSE通知已发送, userId: {}, reviewId: {}, 目标用户数: {}",
+                                                userId, reviewId, connectionCount);
+                                    }
+                                } catch (Exception e) {
+                                    log.error("发送审查完成SSE通知失败, reviewId: {}", reviewId, e);
+                                }
+                            } else {
+                                log.info("用户未开启邮件通知");
+                            }
+                        }
                         emitter.complete();
                         progressScheduler.shutdown();
                     }
@@ -250,9 +260,19 @@ public class ReviewServiceImpl implements ReviewService {
             enrichContractName(fastApiData);
             sortRisksByLevel(fastApiData.getRisks());
 
-            // 检测高风险并发送SSE通知
-            checkAndNotifyHighRisk(userId, reviewId, fastApiData);
-
+            Map<String, String> userSystemConfig = getUserSystemConfigUtils.getUserSystemConfig(userId);
+            String message = userSystemConfig.get("message");
+            if (message.equals("获取用户系统配置成功")) {
+                String riskAlert = userSystemConfig.get("riskAlert");
+                if (riskAlert.equals("true")) {
+                    log.info("开始发送高风险预警");
+                    // 检测高风险并发送SSE通知
+                    checkAndNotifyHighRisk(userId, reviewId, fastApiData);
+                }
+                else {
+                    log.info("用户未开启邮件通知");
+                }
+            }
             String key = ReviewConstant.REVIEW_RESULT_KEY + reviewId;
             stringRedisTemplate.opsForValue().set(key, objectMapper.writeValueAsString(fastApiData));
             updateReviewResult(userId, reviewId, fastApiData);

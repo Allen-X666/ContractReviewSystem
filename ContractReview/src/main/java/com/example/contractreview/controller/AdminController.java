@@ -158,7 +158,7 @@ public class AdminController {
     @PostMapping("/announcement")
     @Operation(summary = "系统公告发布")
     public Result<Notice> announcement(@RequestHeader("Authorization") String authorization,
-                                       @RequestBody @Valid NoticePublishDTO noticePublishDTO) {
+                                       @RequestBody @Valid NoticePublishDTO noticePublishDTO) throws JsonProcessingException {
         return adminService.publishNotice(authorization, noticePublishDTO);
     }
 

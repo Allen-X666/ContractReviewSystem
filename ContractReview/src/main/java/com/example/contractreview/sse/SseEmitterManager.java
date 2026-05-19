@@ -227,7 +227,7 @@ public class SseEmitterManager {
     }
 
     /**
-     * 发送系统公告通知
+     * 发送系统公告通知（给单个用户）
      *
      * @param userId  用户ID
      * @param title   公告标题
@@ -242,6 +242,24 @@ public class SseEmitterManager {
                 .timestamp(LocalDateTime.now())
                 .build();
         return sendToUser(userId, "system_announcement", data);
+    }
+
+    /**
+     * 广播系统公告通知（给所有在线用户）
+     *
+     * @param title   公告标题
+     * @param content 公告内容
+     * @return 发送的目标用户数
+     */
+    public int broadcastSystemAnnouncement(String title, String content) {
+        NotificationData data = NotificationData.builder()
+                .type(NotificationType.SYSTEM_ANNOUNCEMENT)
+                .title(title)
+                .message(content)
+                .timestamp(LocalDateTime.now())
+                .build();
+        sendToAll("system_announcement", data);
+        return emitters.size();
     }
 
     /**

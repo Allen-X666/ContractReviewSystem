@@ -5,6 +5,7 @@ import com.example.contractreview.common.Result;
 import com.example.contractreview.common.ResultCode;
 import com.example.contractreview.constant.*;
 import com.example.contractreview.enums.NoticeStatus;
+import com.example.contractreview.enums.NotificationType;
 import com.example.contractreview.enums.PublishType;
 import com.example.contractreview.enums.UserStatus;
 import com.example.contractreview.mapper.*;
@@ -18,6 +19,7 @@ import com.example.contractreview.client.FastApiClient;
 import com.example.contractreview.model.vo.SelectSystemDocumentListVO;
 import com.example.contractreview.service.AdminService;
 import com.example.contractreview.sse.SseEmitterManager;
+import com.example.contractreview.utils.GetUserSystemConfigUtils;
 import com.example.contractreview.utils.LawFileParser;
 import com.example.contractreview.utils.TokenUtils;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -63,6 +65,7 @@ public class AdminServiceImpl implements AdminService {
     private final ObjectMapper objectMapper;
     private final FastApiClient fastApiClient;
     private final SseEmitterManager sseEmitterManager;
+    private final GetUserSystemConfigUtils getUserSystemConfigUtils;
 
     /**
      * 获取用户列表
@@ -534,7 +537,7 @@ public class AdminServiceImpl implements AdminService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Result<Notice> publishNotice(String authorization,
-                                        NoticePublishDTO noticePublishDTO) {
+                                        NoticePublishDTO noticePublishDTO) throws JsonProcessingException {
         Integer userId = tokenUtils.getUserId(authorization);
         if (userId == null) {
             return Result.error(ResultCode.UNAUTHORIZED.getCode(), "用户未登录");
@@ -556,21 +559,29 @@ public class AdminServiceImpl implements AdminService {
             log.error("公告发布失败, userId: {}, title: {}", userId, noticePublishDTO.getTitle());
             return Result.error(ResultCode.ERROR.getCode(), "公告发布失败");
         }
-
-        // 发送SSE系统公告通知给所有在线用户
-        try {
-            int connectionCount = sseEmitterManager.getConnectionCount();
-            log.info("准备发送系统公告SSE通知, noticeId: {}, title: {}, 当前在线连接数: {}", 
-                    notice.getId(), notice.getTitle(), connectionCount);
-            
-            // 不管有没有在线用户，都进行广播
-            sseEmitterManager.sendToAll("system_announcement", buildAnnouncementSseData(notice));
-            log.info("系统公告SSE通知已广播, noticeId: {}, title: {}, 目标用户数: {}", 
-                    notice.getId(), notice.getTitle(), connectionCount);
-        } catch (Exception e) {
-            log.error("发送系统公告SSE通知失败, noticeId: {}", notice.getId(), e);
+        Map<String, String> userSystemConfig = getUserSystemConfigUtils.getUserSystemConfig(userId);
+        String message = userSystemConfig.get("message");
+        if (message.equals("获取用户系统配置成功")) {
+            String systemNotice = userSystemConfig.get("systemNotice");
+            if (systemNotice.equals("true")) {
+                log.info("开始发送系统公告提示");
+                // 发送SSE系统公告通知给所有在线用户
+                try {
+                    // 使用 broadcastSystemAnnouncement 方法广播给所有在线用户
+                    int connectionCount = sseEmitterManager.broadcastSystemAnnouncement(
+                            notice.getTitle(),
+                            notice.getContent()
+                    );
+                    log.info("系统公告SSE通知已广播, noticeId: {}, title: {}, 目标用户数: {}",
+                            notice.getId(), notice.getTitle(), connectionCount);
+                } catch (Exception e) {
+                    log.error("发送系统公告SSE通知失败, noticeId: {}", notice.getId(), e);
+                }
+            }
+            else {
+                log.info("用户未开启邮件通知");
+            }
         }
-
         log.info("公告发布成功, noticeId: {}, userId: {}, title: {}", notice.getId(), userId, notice.getTitle());
         return Result.success("发布成功", notice);
     }

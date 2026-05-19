@@ -49,7 +49,7 @@ public interface AdminService {
     Result<LawDocument> getLawDocumentById(Long id);
 
     // 发布公告
-    Result<Notice> publishNotice(String authorization, @Valid NoticePublishDTO noticePublishDTO);
+    Result<Notice> publishNotice(String authorization, @Valid NoticePublishDTO noticePublishDTO) throws JsonProcessingException;
 
     // 获取公告列表
     Result<List<NoticeVO>> getAnnouncementList() throws JsonProcessingException;
