@@ -22,8 +22,10 @@ public class UserEmailUtils {
     public void userEmailUtils(Integer userId, String title, String messages) throws JsonProcessingException {
         Map<String, String> userSystemConfig = getUserSystemConfigUtils.getUserSystemConfig(userId);
         String message = userSystemConfig.get("message");
+        log.info("用户系统配置：{}", message);
         if (message.equals("获取用户系统配置成功")) {
             String email = userSystemConfig.get("emailNotification");
+            log.info("用户邮箱通知：{}", email);
             if (email.equals("true")) {
                 log.info("开始发送邮件");
                 String userEmail = getUserSystemConfigUtils.getUserEmail(userId);

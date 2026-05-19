@@ -562,6 +562,7 @@ public class AuthServiceImpl implements AuthService {
             }
             user.setPassword(MD5Utils.md5(changePasswordDTO.getNewPassword()));
             authMapper.update(user);
+            log.info("用户{}修改密码成功", userId);
             userEmailUtils.userEmailUtils(userId, "密码修改成功", "密码修改成功，请返回系统登录。");
             return Result.success("密码修改成功");
         }

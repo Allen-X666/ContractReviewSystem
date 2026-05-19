@@ -37,11 +37,6 @@ public class AsyncMailService {
     private String senderName;
     /**
      * 异步发送验证码邮件
-     *
-     * @param to     收件人
-     * @param code   验证码
-     * @param type   验证码类型
-     * @param expire 过期时间(秒)
      */
     @Async("verifyCodeExecutor")
     public void sendVerifyCodeMailAsync(String to, String code, String type, Integer expire) {
@@ -51,22 +46,18 @@ public class AsyncMailService {
             case "resetPassword" -> "忘记密码";
             default -> "验证";
         };
-
         long startTime = System.currentTimeMillis();
         try {
             MimeMessage mimeMessage = javaMailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
-
             helper.setFrom(from, senderName);
             helper.setTo(to);
             helper.setSubject("【" + senderName + "】" + typeName + "验证码");
             helper.setText(buildEmailContent(typeName, code, expire), true);
-
             javaMailSender.send(mimeMessage);
             log.info("异步发送验证码邮件成功, 耗时{}ms, 收件人:{}", System.currentTimeMillis() - startTime, to);
         } catch (Exception e) {
-            log.error("异步发送验证码邮件失败, 耗时{}ms, 收件人:{}, 错误:{}",
-                    System.currentTimeMillis() - startTime, to, e.getMessage());
+            log.error("异步发送验证码邮件失败, 耗时{}ms, 收件人:{}, 错误:{}",System.currentTimeMillis() - startTime, to, e.getMessage());
         }
     }
 
@@ -75,12 +66,11 @@ public class AsyncMailService {
      */
     private String buildEmailContent(String typeName, String code, Integer expire) {
         String time = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
-
         return String.format(
-                "<div style=\"font-family: 'Microsoft YaHei', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;\">" +
-                        "<div style=\"background: #1e3a5f; padding: 30px; text-align: center; border-bottom: 4px solid #c9a227;\">" +
-                        "<h1 style=\"color: #ffffff; margin: 0; font-size: 24px; font-weight: 600; letter-spacing: 2px;\">智能合同审查助手</h1>" +
-                        "<p style=\"color: #c9a227; margin: 10px 0 0 0; font-size: 14px; font-weight: 500;\">企业法务合规 AI 系统</p>" +
+                "<div style=\"font-family: 'Microsoft YaHei', Arial, sans-serif; max-width: 600px; margin: 0 auto;\">" +
+                        "<div style=\"padding: 30px; text-align: center; border-bottom: 2px solid #333333;\">" +
+                        "<h1 style=\"color: #333333; margin: 0; font-size: 24px; font-weight: 600; letter-spacing: 2px;\">智能合同审查助手</h1>" +
+                        "<p style=\"color: #666666; margin: 10px 0 0 0; font-size: 14px; font-weight: 500;\">企业法务合规 AI 系统</p>" +
                         "</div>" +
                         "<div style=\"padding: 40px 30px;\">" +
                         "<h2 style=\"color: #1e3a5f; margin: 0 0 20px 0; font-size: 20px; font-weight: 600; border-left: 4px solid #c9a227; padding-left: 12px;\">%s验证码</h2>" +
@@ -99,8 +89,8 @@ public class AsyncMailService {
                         "</p>" +
                         "</div>" +
                         "</div>" +
-                        "<div style=\"background: #1e3a5f; padding: 20px; text-align: center;\">" +
-                        "<p style=\"color: #ffffff; font-size: 12px; margin: 0;\">" +
+                        "<div style=\"padding: 20px; text-align: center; border-top: 1px solid #e0e0e0; margin-top: 30px;\">" +
+                        "<p style=\"color: #999999; font-size: 12px; margin: 0;\">" +
                         "此邮件由 %s 自动发送，请勿回复<br>" +
                         "发送时间：%s" +
                         "</p>" +
@@ -150,7 +140,7 @@ public class AsyncMailService {
             }
             default -> {
                 headerColor = "#409EFF";
-                yield "ℹ";
+                yield "@";
             }
         };
 

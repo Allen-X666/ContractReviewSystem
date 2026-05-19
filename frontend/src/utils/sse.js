@@ -21,6 +21,7 @@ class SSEClient {
   }
 
   showToastNotification(notification) {
+    console.log('SSE: 显示Toast通知', notification)
     if (toastInstance) {
       toastInstance.showToast({
         type: notification.type,
@@ -28,6 +29,8 @@ class SSEClient {
         message: notification.message,
         duration: 60000
       })
+    } else {
+      console.warn('SSE: toastInstance未设置')
     }
   }
 
@@ -62,6 +65,7 @@ class SSEClient {
       }
 
       this.eventSource.onmessage = (event) => {
+        console.log('SSE: 收到onmessage事件', event.data)
         try {
           const data = JSON.parse(event.data)
           this.handleMessage(data)
@@ -81,6 +85,7 @@ class SSEClient {
       })
 
       this.eventSource.addEventListener('system_announcement', (event) => {
+        console.log('SSE: 收到system_announcement事件', event.data)
         const data = JSON.parse(event.data)
         this.handleSystemAnnouncement(data)
       })
@@ -163,16 +168,18 @@ class SSEClient {
   }
 
   handleSystemAnnouncement(data) {
+    console.log('SSE: 收到系统公告数据', data)
     const notification = {
       type: 'system_announcement',
       title: `系统公告: ${data.title}`,
-      message: data.content,
+      message: data.content || data.message || '无内容',
       data: {
         announcementId: data.announcementId,
         title: data.title,
         content: data.content
       }
     }
+    console.log('SSE: 构建的通知对象', notification)
     this.notificationStore.addNotification(notification)
     this.showToastNotification(notification)
   }

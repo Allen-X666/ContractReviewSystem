@@ -8,11 +8,13 @@ import com.example.contractreview.model.vo.UserVO;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class GetUserSystemConfigUtils {
@@ -24,6 +26,7 @@ public class GetUserSystemConfigUtils {
     public Map<String, String> getUserSystemConfig(Integer userId) {
         String key = UserConstant.USER_NOTIFICATION_SETTINGS + userId;
         String userSystemConfig = stringRedisTemplate.opsForValue().get(key);
+        log.info("用户系统配置：{}", userSystemConfig);
         Map<String, String> userSystemConfigMap = new java.util.HashMap<>(Map.of());
         try {
             GetNotificationSettings getNotificationSettings = objectMapper.readValue(userSystemConfig, GetNotificationSettings.class);
@@ -32,6 +35,7 @@ public class GetUserSystemConfigUtils {
             userSystemConfigMap.put("riskAlert", getNotificationSettings.getRiskAlert().toString());
             userSystemConfigMap.put("systemNotice", getNotificationSettings.getSystemNotice().toString());
             userSystemConfigMap.put("emailNotification", getNotificationSettings.getEmailNotification().toString());
+            log.info("用户系统配置Map：{}", userSystemConfigMap);
         } catch (Exception e) {
             userSystemConfigMap.put("message", "获取用户系统配置失败");
         }

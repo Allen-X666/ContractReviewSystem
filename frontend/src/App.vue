@@ -1,10 +1,10 @@
 <template>
   <router-view />
-  <ToastNotification ref="toastRef" v-if="userStore.isLoggedIn" />
+  <ToastNotification ref="toastRef" />
 </template>
 
 <script setup>
-import { onMounted, ref, watch } from 'vue'
+import { onMounted, ref, watch, nextTick } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { useTokenRefresh } from '@/composables/useTokenRefresh'
 import ToastNotification from '@/components/Notification/ToastNotification.vue'
@@ -14,6 +14,7 @@ const userStore = useUserStore()
 const toastRef = ref(null)
 
 watch(toastRef, (instance) => {
+  console.log('App: toastRef变化', instance)
   if (instance) {
     setToastInstance(instance)
   }
@@ -23,12 +24,19 @@ useTokenRefresh()
 
 onMounted(() => {
   userStore.loadUserFromStorage()
-  // 延迟建立SSE连接，确保token已加载
-  setTimeout(() => {
-    if (userStore.isLoggedIn) {
-      sseClient.connect()
+  // 确保ToastNotification组件已渲染并设置实例
+  nextTick(() => {
+    if (toastRef.value) {
+      setToastInstance(toastRef.value)
+      console.log('App: toastInstance已设置')
     }
-  }, 100)
+    // 延迟建立SSE连接
+    setTimeout(() => {
+      if (userStore.isLoggedIn) {
+        sseClient.connect()
+      }
+    }, 100)
+  })
 })
 </script>
 
