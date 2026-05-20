@@ -1,9 +1,47 @@
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHistory, defineAsyncComponent } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { ROUTE_NAMES } from '@/utils/constants'
+import { ElLoading } from 'element-plus'
 
 // 布局组件 - 懒加载
 const DefaultLayout = () => import('@/layouts/DefaultLayout.vue')
+
+// 骨架屏组件（轻量级，直接导入）
+import PageSkeleton from '@/components/Skeleton/PageSkeleton.vue'
+
+// 异步组件加载器 - 带骨架屏 Loading
+function createAsyncComponent(importFn, options = {}) {
+  const { delay = 200, timeout = 10000, skeletonProps = {} } = options
+  
+  return defineAsyncComponent({
+    loader: importFn,
+    loadingComponent: PageSkeleton,
+    delay,
+    timeout,
+    errorComponent: {
+      template: `
+        <div class="async-error">
+          <el-result
+            icon="error"
+            title="加载失败"
+            sub-title="页面加载失败，请刷新重试"
+          >
+            <template #extra>
+              <el-button type="primary" @click="$router.go(0)">刷新页面</el-button>
+            </template>
+          </el-result>
+        </div>
+      `
+    },
+    onError(error, retry, fail, attempts) {
+      if (attempts <= 3) {
+        retry()
+      } else {
+        fail()
+      }
+    }
+  })
+}
 
 // 预加载函数 - 用于空闲时预加载组件
 function prefetchComponent(importFn) {
@@ -18,7 +56,22 @@ function prefetchComponent(importFn) {
   }
 }
 
-// 页面组件
+// 页面组件 - 使用 defineAsyncComponent + 骨架屏
+const DashboardView = createAsyncComponent(() => import('@/views/dashboard/Index.vue'))
+const ContractUploadView = createAsyncComponent(() => import('@/views/contract/Upload.vue'))
+const ContractListView = createAsyncComponent(() => import('@/views/contract/List.vue'))
+const ContractDetailView = createAsyncComponent(() => import('@/views/contract/Detail.vue'))
+const ReviewView = createAsyncComponent(() => import('@/views/review/Index.vue'))
+const ReportPreviewView = createAsyncComponent(() => import('@/views/report/Preview.vue'))
+const HistoryView = createAsyncComponent(() => import('@/views/history/Index.vue'))
+const KnowledgeView = createAsyncComponent(() => import('@/views/knowledge/Index.vue'))
+const TemplateView = createAsyncComponent(() => import('@/views/template/Index.vue'))
+const SettingsView = createAsyncComponent(() => import('@/views/settings/Index.vue'))
+const AdminView = createAsyncComponent(() => import('@/views/admin/Index.vue'))
+const LoginView = createAsyncComponent(() => import('@/views/auth/Login.vue'))
+const RegisterView = createAsyncComponent(() => import('@/views/auth/Register.vue'))
+const NotFoundView = createAsyncComponent(() => import('@/views/error/404.vue'))
+
 const routes = [
   {
     path: '/',
@@ -28,7 +81,7 @@ const routes = [
       {
         path: 'dashboard',
         name: ROUTE_NAMES.DASHBOARD,
-        component: () => import('@/views/dashboard/Index.vue'),
+        component: DashboardView,
         meta: {
           title: '仪表盘',
           icon: 'DataLine',
@@ -47,7 +100,7 @@ const routes = [
           {
             path: 'upload',
             name: ROUTE_NAMES.CONTRACT_UPLOAD,
-            component: () => import('@/views/contract/Upload.vue'),
+            component: ContractUploadView,
             meta: {
               title: '上传合同',
               icon: 'Upload',
@@ -57,7 +110,7 @@ const routes = [
           {
             path: 'list',
             name: ROUTE_NAMES.CONTRACT_LIST,
-            component: () => import('@/views/contract/List.vue'),
+            component: ContractListView,
             meta: {
               title: '合同列表',
               icon: 'List',
@@ -67,7 +120,7 @@ const routes = [
           {
             path: 'detail/:id',
             name: ROUTE_NAMES.CONTRACT_DETAIL,
-            component: () => import('@/views/contract/Detail.vue'),
+            component: ContractDetailView,
             meta: {
               title: '合同详情',
               hidden: true
@@ -78,7 +131,7 @@ const routes = [
       {
         path: 'review/:contractId',
         name: ROUTE_NAMES.REVIEW,
-        component: () => import('@/views/review/Index.vue'),
+        component: ReviewView,
         meta: {
           title: '合同审查',
           hidden: true
@@ -87,7 +140,7 @@ const routes = [
       {
         path: 'report/:reviewId',
         name: ROUTE_NAMES.REPORT_PREVIEW,
-        component: () => import('@/views/report/Preview.vue'),
+        component: ReportPreviewView,
         meta: {
           title: '审查报告',
           hidden: true
@@ -96,7 +149,7 @@ const routes = [
       {
         path: 'history',
         name: ROUTE_NAMES.HISTORY,
-        component: () => import('@/views/history/Index.vue'),
+        component: HistoryView,
         meta: {
           title: '审查历史',
           icon: 'Clock',
@@ -106,7 +159,7 @@ const routes = [
       {
         path: 'knowledge',
         name: ROUTE_NAMES.KNOWLEDGE,
-        component: () => import('@/views/knowledge/Index.vue'),
+        component: KnowledgeView,
         meta: {
           title: '法律知识库',
           icon: 'Collection'
@@ -115,7 +168,7 @@ const routes = [
       {
         path: 'template',
         name: ROUTE_NAMES.TEMPLATE,
-        component: () => import('@/views/template/Index.vue'),
+        component: TemplateView,
         meta: {
           title: '模板管理',
           icon: 'Files'
@@ -124,7 +177,7 @@ const routes = [
       {
         path: 'settings',
         name: ROUTE_NAMES.SETTINGS,
-        component: () => import('@/views/settings/Index.vue'),
+        component: SettingsView,
         meta: {
           title: '系统设置',
           icon: 'Setting',
@@ -134,7 +187,7 @@ const routes = [
       {
         path: 'admin',
         name: ROUTE_NAMES.ADMIN,
-        component: () => import('@/views/admin/Index.vue'),
+        component: AdminView,
         meta: {
           title: '系统管理',
           icon: 'Setting',
@@ -146,7 +199,7 @@ const routes = [
   {
     path: '/login',
     name: 'Login',
-    component: () => import('@/views/auth/Login.vue'),
+    component: LoginView,
     meta: {
       title: '登录',
       public: true
@@ -155,7 +208,7 @@ const routes = [
   {
     path: '/register',
     name: 'Register',
-    component: () => import('@/views/auth/Register.vue'),
+    component: RegisterView,
     meta: {
       title: '注册',
       public: true
@@ -164,7 +217,7 @@ const routes = [
   {
     path: '/:pathMatch(.*)*',
     name: 'NotFound',
-    component: () => import('@/views/error/404.vue'),
+    component: NotFoundView,
     meta: {
       title: '页面不存在',
       public: true

@@ -241,7 +241,9 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import * as echarts from 'echarts'
+// 引入 ECharts 按需加载配置
+import '@/utils/echarts'
+import * as echarts from 'echarts/core'
 import {
   formatDate,
   formatRiskLevel,

@@ -125,8 +125,17 @@ public class ReviewServiceImpl implements ReviewService {
      */
     @Override
     public SseEmitter connectProgress(String authorization, Integer reviewId) {
+        // 获取用户ID，用于注册到SseEmitterManager
+        Integer userId = tokenUtils.getUserId(authorization);
+        if (userId == null) {
+            throw new RuntimeException("无效的授权信息");
+        }
+        
         // 创建 SSE 发射器，超时时间 30 分钟
-        SseEmitter emitter = new SseEmitter(1800000L);
+        // 同时注册到SseEmitterManager，以便接收通知
+        SseEmitter emitter = sseEmitterManager.createEmitter(Long.valueOf(userId), 1800000L);
+        
+        log.info("审查进度SSE连接已创建并注册到通知管理器, userId: {}, reviewId: {}", userId, reviewId);
 
         // 定时任务：轮询 FastAPI 获取进度
         final ScheduledExecutorService progressScheduler = Executors.newSingleThreadScheduledExecutor();
@@ -162,7 +171,7 @@ public class ReviewServiceImpl implements ReviewService {
 
                     // 如果审查完成或失败，关闭连接
                     if ("completed".equals(progress.getStatus()) || "failed".equals(progress.getStatus())) {
-                        Integer userId = tokenUtils.getUserId(authorization);
+                        // 使用已获取的userId，不再重新获取
                         userEmailUtils.userEmailUtils(userId, "合同审查完毕", "您的合同审查完毕，请返回系统查看详情。");
 
                         Map<String, String> userSystemConfig = getUserSystemConfigUtils.getUserSystemConfig(userId);

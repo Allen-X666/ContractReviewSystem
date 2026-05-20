@@ -232,15 +232,15 @@ def start_contract_review_process(contract_id: int, contract_name: str, token: O
         return f"❌ 启动审查失败：HTTP {response.status_code}"
 
 
-def search_similar_knowledge(message) -> list:
+async def search_similar_knowledge(message) -> list:
     """
-    回答系统操作问题的相关问题
+    回答系统操作问题的相关问题 - 异步版本
 
     :param message: 用户提问的有关回答系统操作问题
 
     :return: 通过相似性搜索后的答案
     """
-    system_retriever = get_system_retriever()
+    system_retriever = await get_system_retriever()
     system_results = system_retriever.retrieve(message, top_k=3)
     return system_results
 

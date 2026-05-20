@@ -2,12 +2,13 @@
 系统操作文档检索器模块
 
 提供系统操作知识库的检索功能，与法律文档检索器分离。
+支持混合检索（向量检索 + 关键词检索）。
 """
 
 import logging
 import hashlib
 import asyncio
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Set
 
 from 合同审查.app.core.config import settings
 from 合同审查.app.rag.embeddings import Embeddings, get_embeddings
@@ -21,23 +22,99 @@ from 合同审查.app.rag.retriever import BaseRetriever, RetrievedClause, Simpl
 logger = logging.getLogger(__name__)
 
 
+def _calculate_keyword_score(query: str, content: str) -> float:
+    """计算关键词匹配分数（Jaccard 相似度）"""
+    query_words: Set[str] = set(query.lower().split())
+    content_words: Set[str] = set(content.lower().split())
+
+    if not query_words:
+        return 0.0
+
+    intersection = len(query_words & content_words)
+    union = len(query_words | content_words)
+
+    return intersection / union if union > 0 else 0.0
+
+
+def _hybrid_merge_results(
+    query: str,
+    vector_results: List[RetrievedClause],
+    top_k: int,
+    vector_weight: float,
+    keyword_weight: float,
+) -> List[RetrievedClause]:
+    """
+    混合检索融合
+
+    结合向量检索和关键词检索的结果，按加权分数排序。
+    """
+    if not vector_results:
+        return []
+
+    clause_scores: Dict[str, tuple] = {}
+
+    # 添加向量检索结果
+    for clause in vector_results:
+        clause_scores[clause.clause_id] = (clause, vector_weight * clause.score)
+
+    # 关键词检索并融合
+    for clause in vector_results:
+        keyword_score = _calculate_keyword_score(query, clause.clause_content)
+        if keyword_score > 0:
+            existing_clause, existing_score = clause_scores[clause.clause_id]
+            clause_scores[clause.clause_id] = (
+                existing_clause,
+                existing_score + keyword_weight * keyword_score
+            )
+
+    # 按融合分数排序
+    sorted_results = sorted(
+        clause_scores.values(),
+        key=lambda x: x[1],
+        reverse=True,
+    )
+
+    # 返回前 top_k 个结果
+    results = []
+    for clause, score in sorted_results[:top_k]:
+        clause.score = score
+        clause.metadata["hybrid_score"] = score
+        results.append(clause)
+
+    return results
+
+
 class SystemDocumentRetriever(BaseRetriever):
     """
-    系统操作文档检索器
+    系统操作文档检索器（支持混合检索）
 
     在所有已上传的系统操作文档向量库中进行相似度搜索，
     跨多个 collection 检索并合并结果。
+
+    混合检索模式：
+    - 启用时：向量检索 + 关键词检索融合
+    - 禁用时：仅向量检索
     """
 
-    def __init__(self, embeddings: Embeddings):
+    def __init__(
+        self,
+        embeddings: Embeddings,
+        enable_hybrid: bool = None,
+        vector_weight: float = None,
+        keyword_weight: float = None,
+    ):
         self.embeddings = embeddings
+        # 使用配置默认值
+        self.enable_hybrid = enable_hybrid if enable_hybrid is not None else settings.HYBRID_RETRIEVAL_ENABLED
+        self.vector_weight = vector_weight if vector_weight is not None else settings.HYBRID_VECTOR_WEIGHT
+        self.keyword_weight = keyword_weight if keyword_weight is not None else settings.HYBRID_KEYWORD_WEIGHT
 
     def retrieve(
         self,
         query: str,
         top_k: int = 5,
         filter_dict: Optional[Dict[str, Any]] = None,
-    ) -> list[Any] | list[str]:
+    ) -> List[str]:
         """
         检索系统操作文档
 
@@ -47,9 +124,10 @@ class SystemDocumentRetriever(BaseRetriever):
             filter_dict: 过滤条件
 
         Returns:
-            List[RetrievedClause]: 检索结果列表
+            List[str]: 检索结果内容列表
         """
-        logger.info(f"【系统操作检索】查询: '{query[:100]}...' | top_k={top_k}")
+        mode = "混合检索" if self.enable_hybrid else "向量检索"
+        logger.info(f"【系统操作检索】查询: '{query[:100]}...' | top_k={top_k} | 模式={mode}")
 
         # 生成查询向量
         query_embedding = self.embeddings.embed_query(query)
@@ -60,8 +138,9 @@ class SystemDocumentRetriever(BaseRetriever):
             logger.error("【系统操作检索】查询向量为零向量")
             return []
 
-        # 搜索系统操作文档向量库
-        results = search_system_documents(query_embedding, top_k=top_k)
+        # 扩大召回数量用于混合检索
+        recall_top_k = settings.HYBRID_RECALL_TOP_K if self.enable_hybrid else top_k
+        results = search_system_documents(query_embedding, top_k=recall_top_k)
 
         if not results:
             logger.warning("【系统操作检索】未找到任何结果")
@@ -71,23 +150,45 @@ class SystemDocumentRetriever(BaseRetriever):
         clauses = []
         for i, (record, score) in enumerate(results):
             clause = RetrievedClause.from_record(record, score)
-            clauses.append(clause.clause_content)
-            logger.info(f"【系统操作检索】结果 {i+1}: "
-                       f"内容: {clause.clause_content[:80]}...")
+            clause.metadata["vector_score"] = score
+            clauses.append(clause)
 
-        logger.info(f"【系统操作检索】共返回 {len(clauses)} 条结果")
-        return clauses
+        logger.info(f"【系统操作检索】向量召回: {len(clauses)} 条")
+
+        # 混合检索融合
+        if self.enable_hybrid and len(clauses) > 1:
+            clauses = _hybrid_merge_results(
+                query, clauses, top_k,
+                self.vector_weight, self.keyword_weight
+            )
+            logger.info(
+                f"【系统操作检索】混合融合完成: "
+                f"返回前 {len(clauses)} 条 | "
+                f"最高分={clauses[0].score:.4f}"
+            )
+        else:
+            clauses = clauses[:top_k]
+
+        # 返回内容列表
+        contents = [clause.clause_content for clause in clauses]
+
+        for i, content in enumerate(contents):
+            logger.info(f"【系统操作检索】结果 {i+1}: 内容: {content[:80]}...")
+
+        logger.info(f"【系统操作检索】共返回 {len(contents)} 条结果")
+        return contents
 
 
 class CachedSystemDocumentRetriever(BaseRetriever):
     """
-    带缓存的系统操作文档检索器
+    带缓存的系统操作文档检索器（支持混合检索）
 
     优化点：
     1. 嵌入模型延迟初始化，避免重复创建
     2. 检索结果TTL缓存，减少重复查询
     3. 异步缓存操作，不阻塞主流程
     4. 支持缓存统计和手动清理
+    5. 支持混合检索（向量 + 关键词）
     """
 
     def __init__(
@@ -95,6 +196,9 @@ class CachedSystemDocumentRetriever(BaseRetriever):
         embeddings: Optional[Embeddings] = None,
         cache_size: int = 1000,
         cache_ttl: int = 3600,  # 1小时
+        enable_hybrid: bool = None,
+        vector_weight: float = None,
+        keyword_weight: float = None,
     ):
         self._embeddings = embeddings
         self._cache = SimpleTTLCache(maxsize=cache_size, ttl=cache_ttl)
@@ -104,6 +208,10 @@ class CachedSystemDocumentRetriever(BaseRetriever):
             "cache_hits": 0,
             "cache_misses": 0,
         }
+        # 混合检索配置
+        self.enable_hybrid = enable_hybrid if enable_hybrid is not None else settings.HYBRID_RETRIEVAL_ENABLED
+        self.vector_weight = vector_weight if vector_weight is not None else settings.HYBRID_VECTOR_WEIGHT
+        self.keyword_weight = keyword_weight if keyword_weight is not None else settings.HYBRID_KEYWORD_WEIGHT
 
     async def _get_embeddings(self) -> Embeddings:
         """延迟初始化嵌入模型（线程安全）"""
@@ -163,7 +271,8 @@ class CachedSystemDocumentRetriever(BaseRetriever):
             logger.debug(f"【CachedSystemRetriever】缓存未命中 | key={cache_key[:8]}...")
 
         # 执行检索
-        logger.info(f"【CachedSystemRetriever】执行检索 | query='{query[:100]}...' | top_k={top_k}")
+        mode = "混合检索" if self.enable_hybrid else "向量检索"
+        logger.info(f"【CachedSystemRetriever】执行检索 | query='{query[:100]}...' | top_k={top_k} | 模式={mode}")
 
         # 获取嵌入模型（延迟初始化）
         embeddings = await self._get_embeddings()
@@ -176,8 +285,9 @@ class CachedSystemDocumentRetriever(BaseRetriever):
             logger.error("【CachedSystemRetriever】查询向量为零向量")
             return []
 
-        # 搜索系统操作向量库
-        results = search_system_documents(query_embedding, top_k=top_k)
+        # 扩大召回数量用于混合检索
+        recall_top_k = settings.HYBRID_RECALL_TOP_K if self.enable_hybrid else top_k
+        results = search_system_documents(query_embedding, top_k=recall_top_k)
 
         if not results:
             logger.warning("【CachedSystemRetriever】未找到任何结果")
@@ -187,9 +297,24 @@ class CachedSystemDocumentRetriever(BaseRetriever):
         clauses = []
         for i, (record, score) in enumerate(results):
             clause = RetrievedClause.from_record(record, score)
+            clause.metadata["vector_score"] = score
             clauses.append(clause)
-            logger.debug(f"【CachedSystemRetriever】结果 {i+1}: "
-                        f"段落[{clause.clause_no}] 相似度={score:.4f}")
+
+        logger.info(f"【CachedSystemRetriever】向量召回: {len(clauses)} 条")
+
+        # 混合检索融合
+        if self.enable_hybrid and len(clauses) > 1:
+            clauses = _hybrid_merge_results(
+                query, clauses, top_k,
+                self.vector_weight, self.keyword_weight
+            )
+            logger.info(
+                f"【CachedSystemRetriever】混合融合完成: "
+                f"返回前 {len(clauses)} 条 | "
+                f"最高分={clauses[0].score:.4f}"
+            )
+        else:
+            clauses = clauses[:top_k]
 
         logger.info(f"【CachedSystemRetriever】检索完成 | 共 {len(clauses)} 条结果")
 
@@ -234,12 +359,14 @@ _system_retriever_cache: Optional["SystemDocumentRetriever"] = None
 _cached_system_retriever: Optional[CachedSystemDocumentRetriever] = None
 
 
-def get_system_retriever() -> SystemDocumentRetriever:
+async def get_system_retriever() -> SystemDocumentRetriever:
     """
-    获取系统操作文档检索器实例（单例缓存）
+    获取系统操作文档检索器实例（单例缓存）- 异步版本
 
     连接到已上传的系统操作文档向量库，用于在回答系统使用问题时
     检索相关操作指南。
+
+    优先使用预热服务中已加载的 Embedding 模型，避免重复加载。
 
     Returns:
         SystemDocumentRetriever: 系统操作文档检索器实例
@@ -248,10 +375,25 @@ def get_system_retriever() -> SystemDocumentRetriever:
     if _system_retriever_cache is not None:
         return _system_retriever_cache
 
-    embeddings = get_embeddings(
-        embedding_type=settings.EMBEDDING_TYPE,
-        model=settings.EMBEDDING_MODEL,
-    )
+    # 优先使用预热服务中已加载的模型
+    try:
+        from 合同审查.app.services.warmup_service import get_warmup_service
+        warmup_service = get_warmup_service()
+        embeddings = await warmup_service.get_embedding_model()
+        if embeddings is not None:
+            logger.info("使用预热服务中的 Embedding 模型")
+        else:
+            logger.info("预热服务中无 Embedding 模型，创建新实例")
+            embeddings = get_embeddings(
+                embedding_type=settings.EMBEDDING_TYPE,
+                model=settings.EMBEDDING_MODEL,
+            )
+    except Exception as e:
+        logger.warning(f"获取预热模型失败: {e}，创建新实例")
+        embeddings = get_embeddings(
+            embedding_type=settings.EMBEDDING_TYPE,
+            model=settings.EMBEDDING_MODEL,
+        )
 
     _system_retriever_cache = SystemDocumentRetriever(embeddings=embeddings)
     logger.info("系统操作文档检索器初始化完成")

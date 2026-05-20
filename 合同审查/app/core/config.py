@@ -103,8 +103,8 @@ class Settings(BaseSettings):
 
     # HuggingFace配置
     HF_TOKEN: str = ""
-    HF_ENDPOINT: str = "https://huggingface.co"
-    HF_HUB_CACHE: str = r"E:\Professional\合同审查agent\合同审查"
+    HF_ENDPOINT: str = "https://hf-mirror.com"
+    HF_HUB_CACHE: str = r"E:\Professional\合同审查agent\合同审查\huggingface\cache"  # HuggingFace 模型缓存目录
     HF_HUB_DISABLE_SYMLINKS_WARNING: bool = True
 
     # ==================== Redis Checkpointer 配置 ====================
@@ -147,6 +147,16 @@ class Settings(BaseSettings):
     DB_POOL_TIMEOUT: int = 30       # 获取连接的超时时间（秒）
     DB_POOL_RECYCLE: int = 3600     # 连接回收时间（秒）
     DB_ECHO: bool = False           # 是否打印SQL语句（调试用）
+
+    # ==================== 混合检索配置 ====================
+    # 是否启用混合检索（向量检索 + 关键词检索）
+    HYBRID_RETRIEVAL_ENABLED: bool = os.getenv("HYBRID_RETRIEVAL_ENABLED", "true").lower() == "true"
+    # 向量检索权重（0.0-1.0）
+    HYBRID_VECTOR_WEIGHT: float = float(os.getenv("HYBRID_VECTOR_WEIGHT", "0.7"))
+    # 关键词检索权重（0.0-1.0）
+    HYBRID_KEYWORD_WEIGHT: float = float(os.getenv("HYBRID_KEYWORD_WEIGHT", "0.3"))
+    # 混合检索召回数量（重排前）
+    HYBRID_RECALL_TOP_K: int = int(os.getenv("HYBRID_RECALL_TOP_K", "10"))
 
     class Config:
         env_file = ".env"

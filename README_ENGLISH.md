@@ -82,6 +82,8 @@ The Contract Review AI Assistant is an enterprise legal compliance solution powe
 | **Database** | MySQL 8.0 + Redis 7.0 | Relational data + cache/session management |
 | **File Storage** | Local Storage / Alibaba Cloud OSS | Contract document storage |
 | **Vector Database** | Chroma / FAISS | Legal knowledge base vector retrieval |
+| **Database Migration** | Alembic | SQLAlchemy database version management |
+| **Service Monitoring** | Custom health checks | /ready endpoint, connection pool monitoring |
 
 ## 🚀 Quick Start
 
@@ -152,6 +154,27 @@ python -m uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
 
 Access the service at: http://localhost:8001/docs
 
+#### Alembic Database Migration (Optional)
+
+If using Alembic for database migration:
+
+```bash
+# Generate migration script (auto-generated based on model changes)
+alembic revision --autogenerate -m "create contract table"
+
+# View current version
+alembic current
+
+# Upgrade to latest version
+alembic upgrade head
+
+# Downgrade to previous version
+alembic downgrade -1
+
+# View version history
+alembic history
+```
+
 ### 5. Start Frontend
 
 ```bash
@@ -173,6 +196,7 @@ npm run dev
 - **SpringBoot API**: http://localhost:8080/api
 - **FastAPI API**: http://localhost:8001/api/v1
 - **API Documentation**: http://localhost:8080/swagger-ui.html
+- **Health Check**: http://localhost:8001/ready (Service readiness status)
 
 ## 📁 Project Structure
 
@@ -620,6 +644,91 @@ Detailed API documentation in [后端API开发文档.md](后端API开发文档.m
   - Enterprise internal policies
 
 ## 📈 Performance Optimization
+
+### Service Warmup
+
+FastAPI service automatically preloads the following resources at startup to reduce first-request latency:
+
+| Resource | Description | Status Check |
+|----------|-------------|--------------|
+| **Embedding Model** | Text vectorization model preload | `/ready` endpoint |
+| **Vector Database** | Chroma/FAISS index loading | `/ready` endpoint |
+| **Legal Document Retriever** | RAG retriever initialization | `/ready` endpoint |
+| **LLM Chains** | Risk analysis chain, compliance check chain | `/ready` endpoint |
+
+**Health Check Endpoint**:
+```bash
+# Check service readiness status
+curl http://localhost:8001/ready
+
+# Returns 200 - Service ready
+# Returns 503 - Service not ready (warming up or error)
+```
+
+### Exception Degradation & Circuit Breaker
+
+The system implements multi-level degradation strategies to ensure high availability:
+
+#### LLM Degradation Strategy
+
+When the primary model fails, automatically fall back to backup models:
+
+```
+qwen3.6-flash (Primary)
+    ↓ Failure
+qwen3.6-plus (Backup 1)
+    ↓ Failure
+qwen-turbo (Backup 2)
+    ↓ Failure
+qwen-plus (Backup 3)
+```
+
+- **Circuit Breaker**: Opens after 5 consecutive failures, auto-recovers after 30 seconds
+- **Timeout Control**: 150 seconds timeout per call
+
+#### RAG Degradation Strategy
+
+When vector retrieval fails, fall back to keyword matching:
+
+```
+Vector Retrieval (Chroma/FAISS)
+    ↓ Failure
+Keyword Matching Fallback
+```
+
+#### Task Failure Notification
+
+When a review task fails, error information is pushed in real-time via SSE:
+
+```javascript
+// Client receives failure notification example
+eventSource.onmessage = (event) => {
+  const data = JSON.parse(event.data);
+  if (data.status === 'FAILED') {
+    console.error('Review failed:', data.message);
+    // Display error notification
+  }
+};
+```
+
+### Database Connection Pool Monitoring
+
+SQLAlchemy connection pool real-time monitoring metrics:
+
+```bash
+# Get database health status
+curl http://localhost:8001/api/v1/health/db
+
+# Response example
+{
+  "status": "healthy",
+  "pool_size": 5,
+  "max_overflow": 10,
+  "checked_in": 4,
+  "checked_out": 1,
+  "overflow": 0
+}
+```
 
 ### Caching Strategy
 

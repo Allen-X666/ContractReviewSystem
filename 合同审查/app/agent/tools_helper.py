@@ -1,36 +1,33 @@
 """
-Agent 工具辅助函数
+Agent 工具辅助函数 (异步版本)
 
 提供工具函数内部使用的辅助函数，不直接暴露给 Agent。
 """
 
+import asyncio
 import json
 import logging
 import re
-import threading
 from typing import Optional, Dict, Any
 
-from redis import Redis
+import redis.asyncio as aioredis
 
 from 合同审查.app.core.config import settings
-from 合同审查.app.core.http_client import springboot_get, springboot_post, springboot_put
+from 合同审查.app.core.http_client import async_springboot_get, async_springboot_post, async_springboot_put
 from 合同审查.app.utils import get_current_token
 
 logger = logging.getLogger(__name__)
 
-# 线程本地存储
-_thread_local = threading.local()
-
-# Redis 客户端（用于存储待确认的更新状态）
-_redis_client: Optional[Redis] = None
+# 异步 Redis 客户端（用于存储待确认的更新状态）
+_async_redis_client: Optional[aioredis.Redis] = None
 
 
-def _get_redis_client() -> Optional[Redis]:
-    """获取 Redis 客户端"""
-    global _redis_client
-    if _redis_client is None:
+async def _get_async_redis_client() -> Optional[aioredis.Redis]:
+    """获取异步 Redis 客户端"""
+    global _async_redis_client
+    if _async_redis_client is None:
         try:
-            _redis_client = Redis(
+            _async_redis_client = aioredis.Redis(
                 host=settings.REDIS_HOST,
                 port=settings.REDIS_PORT,
                 db=settings.REDIS_DB,
@@ -38,12 +35,12 @@ def _get_redis_client() -> Optional[Redis]:
                 decode_responses=True,
             )
             # 测试连接
-            _redis_client.ping()
-            logger.info("Redis 连接成功")
+            await _async_redis_client.ping()
+            logger.info("异步 Redis 连接成功")
         except Exception as e:
-            logger.warning(f"Redis 连接失败: {e}")
-            _redis_client = None
-    return _redis_client
+            logger.warning(f"异步 Redis 连接失败: {e}")
+            _async_redis_client = None
+    return _async_redis_client
 
 
 def _get_pending_key(token: str) -> str:
@@ -56,6 +53,10 @@ def _get_pending_key(token: str) -> str:
 
 # 全局变量存储当前请求的 token（用于工具函数）
 _current_request_token: Optional[str] = None
+
+# 内存存储（当 Redis 不可用时降级使用）
+_pending_user_updates: Dict[str, Dict[str, Any]] = {}
+_pending_storage_updates: Dict[str, Dict[str, Any]] = {}
 
 
 def set_request_token(token: Optional[str]) -> None:
@@ -76,43 +77,47 @@ def clear_request_token() -> None:
     _current_request_token = None
 
 
-def set_pending_user_update(token: str, update_info: Optional[Dict[str, Any]]) -> None:
-    """设置待确认的用户更新信息（使用 Redis 存储）"""
-    redis_client = _get_redis_client()
-    if redis_client and update_info:
+async def set_pending_user_update(token: str, update_info: Optional[Dict[str, Any]]) -> None:
+    """设置待确认的用户更新信息（使用 Redis 存储，异步版本）"""
+    if not update_info:
+        return
+    
+    redis_client = await _get_async_redis_client()
+    if redis_client:
         key = _get_pending_key(token)
-        redis_client.setex(key, 300, json.dumps(update_info))  # 5分钟过期
+        await redis_client.setex(key, 300, json.dumps(update_info))  # 5分钟过期
         logger.info(f"已存储待确认更新到 Redis: {key}")
     else:
         # 降级到内存存储
-        _thread_local.pending_update = update_info
+        _pending_user_updates[token] = update_info
+        logger.info(f"已存储待确认更新到内存: {token}")
 
 
-def get_pending_user_update(token: str) -> Optional[Dict[str, Any]]:
-    """获取待确认的用户更新信息（优先从 Redis 获取）"""
-    redis_client = _get_redis_client()
+async def get_pending_user_update(token: str) -> Optional[Dict[str, Any]]:
+    """获取待确认的用户更新信息（优先从 Redis 获取，异步版本）"""
+    redis_client = await _get_async_redis_client()
     if redis_client:
         key = _get_pending_key(token)
-        data = redis_client.get(key)
+        data = await redis_client.get(key)
         if data:
             logger.info(f"从 Redis 获取待确认更新: {key}")
             return json.loads(data)
     
     # 降级到内存存储
-    return getattr(_thread_local, 'pending_update', None)
+    return _pending_user_updates.get(token)
 
 
-def clear_pending_user_update(token: str) -> None:
-    """清除待确认的用户更新信息"""
-    redis_client = _get_redis_client()
+async def clear_pending_user_update(token: str) -> None:
+    """清除待确认的用户更新信息（异步版本）"""
+    redis_client = await _get_async_redis_client()
     if redis_client:
         key = _get_pending_key(token)
-        redis_client.delete(key)
+        await redis_client.delete(key)
         logger.info(f"已清除 Redis 中的待确认更新: {key}")
     
     # 清除内存存储
-    if hasattr(_thread_local, 'pending_update'):
-        delattr(_thread_local, 'pending_update')
+    if token in _pending_user_updates:
+        del _pending_user_updates[token]
 
 
 def _format_pending_user_update(pending_update: Dict[str, Any]) -> str:
@@ -132,8 +137,8 @@ def _format_confirmation_request(update_info: Dict[str, Any], current_value: str
     return f'您是否要修改{field_name}，由 **{current_value or "（空）"}** 修改为 **{new_value}**？\n\n请回复"**确认**"执行修改，或回复"**取消**"放弃修改。'
 
 
-def _execute_user_update(update_info: Dict[str, Any], token: str) -> str:
-    """执行用户更新操作"""
+async def _execute_user_update(update_info: Dict[str, Any], token: str) -> str:
+    """执行用户更新操作（异步版本）"""
 
     field = update_info.get("field")
     value = update_info.get("value")
@@ -149,7 +154,7 @@ def _execute_user_update(update_info: Dict[str, Any], token: str) -> str:
                 "confirmPassword": value  # 确认密码与新密码相同
             }
 
-            response = springboot_post(
+            response = await async_springboot_post(
                 "/auth/change-password",
                 token=token,
                 json_data=update_data
@@ -164,14 +169,14 @@ def _execute_user_update(update_info: Dict[str, Any], token: str) -> str:
             elif field == "phone":
                 update_data["phone"] = value
 
-            response = springboot_put(
+            response = await async_springboot_put(
                 "/user/profile",
                 token=token,
                 json_data=update_data
             )
 
         # 清除待确认的更新
-        clear_pending_user_update(token)
+        await clear_pending_user_update(token)
 
         if response.status_code == 200:
             result = response.json()
@@ -184,14 +189,14 @@ def _execute_user_update(update_info: Dict[str, Any], token: str) -> str:
 
     except Exception as e:
         logger.error(f"更新用户信息失败: {e}")
-        clear_pending_user_update(token)
+        await clear_pending_user_update(token)
         return f"❌ 更新出错：{str(e)}"
 
 
-def _get_current_user_field(field: str, token: str) -> str:
-    """获取当前用户的字段值"""
+async def _get_current_user_field(field: str, token: str) -> str:
+    """获取当前用户的字段值（异步版本）"""
     try:
-        response = springboot_get("/user/profile", token=token)
+        response = await async_springboot_get("/user/profile", token=token)
         if response.status_code == 200:
             result = response.json()
             if result.get("code") == 200:
@@ -308,44 +313,51 @@ def _get_pending_storage_key(token: str) -> str:
     return f"pending_storage_update:{token_hash}"
 
 
-def set_pending_storage_update(token: str, update_info: Optional[Dict[str, Any]]) -> None:
-    """设置待确认的存储路径更新信息"""
-    redis_client = _get_redis_client()
-    if redis_client and update_info:
-        key = _get_pending_storage_key(token)
-        redis_client.setex(key, 300, json.dumps(update_info))  # 5分钟过期
-        logger.info(f"已存储待确认存储路径更新到 Redis: {key}")
-    else:
-        _thread_local.pending_storage_update = update_info
-
-
-def get_pending_storage_update(token: str) -> Optional[Dict[str, Any]]:
-    """获取待确认的存储路径更新信息"""
-    redis_client = _get_redis_client()
+async def set_pending_storage_update(token: str, update_info: Optional[Dict[str, Any]]) -> None:
+    """设置待确认的存储路径更新信息（异步版本）"""
+    if not update_info:
+        return
+    
+    redis_client = await _get_async_redis_client()
     if redis_client:
         key = _get_pending_storage_key(token)
-        data = redis_client.get(key)
+        await redis_client.setex(key, 300, json.dumps(update_info))  # 5分钟过期
+        logger.info(f"已存储待确认存储路径更新到 Redis: {key}")
+    else:
+        # 降级到内存存储
+        _pending_storage_updates[token] = update_info
+        logger.info(f"已存储待确认存储路径更新到内存: {token}")
+
+
+async def get_pending_storage_update(token: str) -> Optional[Dict[str, Any]]:
+    """获取待确认的存储路径更新信息（异步版本）"""
+    redis_client = await _get_async_redis_client()
+    if redis_client:
+        key = _get_pending_storage_key(token)
+        data = await redis_client.get(key)
         if data:
             logger.info(f"从 Redis 获取待确认存储路径更新: {key}")
             return json.loads(data)
-    return getattr(_thread_local, 'pending_storage_update', None)
+    # 降级到内存存储
+    return _pending_storage_updates.get(token)
 
 
-def clear_pending_storage_update(token: str) -> None:
-    """清除待确认的存储路径更新信息"""
-    redis_client = _get_redis_client()
+async def clear_pending_storage_update(token: str) -> None:
+    """清除待确认的存储路径更新信息（异步版本）"""
+    redis_client = await _get_async_redis_client()
     if redis_client:
         key = _get_pending_storage_key(token)
-        redis_client.delete(key)
+        await redis_client.delete(key)
         logger.info(f"已清除 Redis 中的待确认存储路径更新: {key}")
-    if hasattr(_thread_local, 'pending_storage_update'):
-        delattr(_thread_local, 'pending_storage_update')
+    # 清除内存存储
+    if token in _pending_storage_updates:
+        del _pending_storage_updates[token]
 
 
-def _get_current_storage_paths(token: str) -> Dict[str, str]:
-    """获取当前用户的存储路径配置"""
+async def _get_current_storage_paths(token: str) -> Dict[str, str]:
+    """获取当前用户的存储路径配置（异步版本）"""
     try:
-        response = springboot_get("/system/config/storage", token=token)
+        response = await async_springboot_get("/system/config/storage", token=token)
         if response.status_code == 200:
             result = response.json()
             if result.get("code") == 200:
@@ -453,21 +465,21 @@ def _format_storage_confirmation_request(update_info: Dict[str, Any]) -> str:
         return f'您是否要修改以下存储路径？\n\n' + '\n'.join(changes) + '\n\n请回复"**确认**"执行修改，或回复"**取消**"放弃修改。'
 
 
-def _execute_storage_update(update_info: Dict[str, Any], token: str) -> str:
-    """执行存储路径更新操作"""
+async def _execute_storage_update(update_info: Dict[str, Any], token: str) -> str:
+    """执行存储路径更新操作（异步版本）"""
     try:
         update_data = {
             "uploadPath": update_info.get("upload_path", ""),
             "reviewPath": update_info.get("review_path", "")
         }
 
-        response = springboot_post(
+        response = await async_springboot_post(
             "/system/config/storage",
             token=token,
             json_data=update_data
         )
 
-        clear_pending_storage_update(token)
+        await clear_pending_storage_update(token)
 
         if response.status_code == 200:
             result = response.json()
@@ -486,7 +498,7 @@ def _execute_storage_update(update_info: Dict[str, Any], token: str) -> str:
 
     except Exception as e:
         logger.error(f"更新存储路径失败: {e}")
-        clear_pending_storage_update(token)
+        await clear_pending_storage_update(token)
         return f"❌ 更新出错：{str(e)}"
 
 

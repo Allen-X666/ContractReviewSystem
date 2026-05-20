@@ -9,11 +9,9 @@ import logging
 from typing import Optional, Dict, Any
 from redis import Redis
 from sqlalchemy.orm import Session
-from 合同审查.app.core import SessionLocal
 from 合同审查.model.contract import Contract
 
 logger = logging.getLogger(__name__)
-db = SessionLocal()
 
 
 class ContractService:
@@ -170,11 +168,12 @@ class ContractService:
 
         return "根据所提供的合同名称，并未查询到相关合同文件"
 
-    def check_contract_exists(self, contract_id: Optional[int] = None, contract_name: Optional[str] = None) -> bool:
+    def check_contract_exists(self, db: Session, contract_id: Optional[int] = None, contract_name: Optional[str] = None) -> bool:
         """
         检查合同是否存在
 
         Args:
+            db: 数据库会话
             contract_id: 合同ID（可选）
             contract_name: 合同名称（可选）
 
@@ -182,9 +181,11 @@ class ContractService:
             是否存在
         """
         if contract_id:
-            return self.get_contract_by_id(contract_id, db) is not None
+            result = self.get_contract_by_id(contract_id, db)
+            return result is not None and not isinstance(result, str)
         if contract_name:
-            return self.get_contract_by_name(contract_name, db) is not None
+            result = self.get_contract_by_name(contract_name, db)
+            return result is not None and not isinstance(result, str)
         return False
 
     def invalidate_cache(self, contract_id: Optional[int] = None, contract_name: Optional[str] = None) -> bool:

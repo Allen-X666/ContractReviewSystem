@@ -109,11 +109,16 @@
         DELETE FROM sys_user WHERE id = #{id}
     </delete>
 
-    <!-- 查询所有用户 -->
+    <!-- 查询所有用户（按角色排序：ADMIN在前，其他在后） -->
     <select id="selectAllUsers" resultMap="BaseResultMap">
         SELECT *
         FROM sys_user
-        ORDER BY created_at DESC
+        ORDER BY 
+            CASE 
+                WHEN role = 'ADMIN' THEN 0 
+                ELSE 1 
+            END,
+            created_at DESC
     </select>
 
     <!-- 管理员更新用户信息 -->

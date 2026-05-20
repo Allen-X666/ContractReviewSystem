@@ -9,6 +9,7 @@ from .review_task_service import (
     ReviewTask,
 )
 from .review_worker import ReviewWorker
+from .warmup_service import WarmupService, get_warmup_service
 
 __all__ = [
     "ReviewTaskService",
@@ -16,4 +17,6 @@ __all__ = [
     "MemoryTaskStorage",
     "ReviewTask",
     "ReviewWorker",
+    "WarmupService",
+    "get_warmup_service",
 ]

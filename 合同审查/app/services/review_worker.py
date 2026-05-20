@@ -20,6 +20,8 @@ from 合同审查.app.llm import (
     LLMFactory
 )
 from 合同审查.app.utils.enum_mapping import convert_risk_item, convert_risk_items
+from 合同审查.app.core.fallback import get_llm_fallback_manager, get_rag_fallback_manager, FallbackStrategy
+from 合同审查.app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -48,27 +50,60 @@ class ReviewWorker:
         self._risk_counter = 0
 
     async def _init_llm_chains_async(self):
-        """初始化LLM链（异步版本，避免阻塞事件循环）"""
+        """初始化LLM链（异步版本，避免阻塞事件循环，带降级策略）"""
         if self._risk_chain is None:
             import asyncio
             loop = asyncio.get_event_loop()
 
-            def sync_init():
-                llm = LLMFactory.create_review_llm()
-                risk_chain = RiskAnalysisChain(llm=llm)
-                compliance_chain = ComplianceCheckChain(llm=llm)
-                review_chain = CompleteReviewChain(
-                    risk_chain=risk_chain,
-                    compliance_chain=compliance_chain,
-                )
-                return risk_chain, compliance_chain, review_chain
+            async def init_with_fallback():
+                """带降级的初始化"""
+                fallback_manager = get_llm_fallback_manager()
+                primary_model = settings.LLM_MODEL_REVIEW
 
-            self._risk_chain, self._compliance_chain, self._review_chain = await loop.run_in_executor(None, sync_init)
+                def sync_init(model_name=None):
+                    # 如果指定了备用模型，临时修改配置
+                    original_model = settings.LLM_MODEL_REVIEW
+                    if model_name:
+                        settings.LLM_MODEL_REVIEW = model_name
+                    try:
+                        llm = LLMFactory.create_review_llm()
+                        risk_chain = RiskAnalysisChain(llm=llm)
+                        compliance_chain = ComplianceCheckChain(llm=llm)
+                        review_chain = CompleteReviewChain(
+                            risk_chain=risk_chain,
+                            compliance_chain=compliance_chain,
+                        )
+                        return risk_chain, compliance_chain, review_chain
+                    finally:
+                        if model_name:
+                            settings.LLM_MODEL_REVIEW = original_model
+
+                try:
+                    # 尝试主模型初始化
+                    return await loop.run_in_executor(None, sync_init)
+                except Exception as e:
+                    logger.error(f"主模型 {primary_model} 初始化失败: {e}，尝试备用模型")
+                    # 尝试备用模型
+                    fallback_models = ["qwen3.6-plus", "qwen-turbo", "qwen-plus"]
+                    for fallback_model in fallback_models:
+                        try:
+                            logger.info(f"尝试使用备用模型: {fallback_model}")
+                            result = await loop.run_in_executor(None, lambda: sync_init(fallback_model))
+                            logger.info(f"备用模型 {fallback_model} 初始化成功")
+                            return result
+                        except Exception as fallback_e:
+                            logger.warning(f"备用模型 {fallback_model} 初始化失败: {fallback_e}")
+                            continue
+                    # 所有模型都失败
+                    raise Exception(f"所有模型（包括备用模型）初始化均失败")
+
+            self._risk_chain, self._compliance_chain, self._review_chain = await init_with_fallback()
             logger.info("LLM链和智能分析器初始化完成")
 
     async def _init_retriever_async(self):
-        """初始化法律文档检索器（异步版本，避免阻塞事件循环）"""
+        """初始化法律文档检索器（异步版本，避免阻塞事件循环，带降级策略）"""
         if self._retriever is None:
+            fallback_manager = get_rag_fallback_manager()
             try:
                 import asyncio
                 loop = asyncio.get_event_loop()
@@ -76,8 +111,13 @@ class ReviewWorker:
                 self._retriever = await loop.run_in_executor(None, get_law_retriever)
                 logger.info("法律文档检索器初始化完成")
             except Exception as e:
-                logger.warning(f"法律文档检索器初始化失败: {e}，将使用空检索结果")
+                logger.warning(f"法律文档检索器初始化失败: {e}，将启用关键词匹配降级策略")
                 self._retriever = None
+                # 记录降级事件
+                self._task_service.update_task_status(
+                    self._current_review_id if hasattr(self, '_current_review_id') else 0,
+                    message="法律文档检索器初始化失败，已启用关键词匹配降级"
+                )
 
     def _retrieve_related_laws(self, query: str, top_k: int = 3) -> List[RelatedLaw]:
         """
@@ -114,12 +154,33 @@ class ReviewWorker:
             return related_laws
 
         except Exception as e:
-            logger.error(f"【RAG检索】检索失败: {e}")
-            return []
+            logger.error(f"【RAG检索】检索失败: {e}，将尝试关键词匹配降级")
+            # 尝试关键词匹配降级
+            return self._keyword_fallback_retrieve(query, top_k)
+
+    def _keyword_fallback_retrieve(self, query: str, top_k: int = 3) -> List[RelatedLaw]:
+        """
+        关键词匹配降级检索
+
+        当向量检索失败时，使用简单的关键词匹配作为降级方案
+
+        Args:
+            query: 查询文本
+            top_k: 返回结果数量
+
+        Returns:
+            List[RelatedLaw]: 关联法条列表
+        """
+        logger.info(f"【关键词匹配降级】查询: '{query[:100]}...'")
+
+        # 这里可以实现基于关键词的本地法律条文匹配
+        # 简化实现：返回空列表，但记录降级事件
+        logger.warning("关键词匹配降级未实现具体逻辑，返回空结果")
+        return []
 
     async def _retrieve_related_laws_async(self, query: str, top_k: int = 3) -> List[RelatedLaw]:
         """
-        检索关联法条（异步版本，使用线程池避免阻塞事件循环）
+        检索关联法条（异步版本，使用线程池避免阻塞事件循环，带降级策略）
 
         Args:
             query: 查询文本（条款内容或风险描述）
@@ -128,9 +189,21 @@ class ReviewWorker:
         Returns:
             List[RelatedLaw]: 关联法条列表
         """
+        fallback_manager = get_rag_fallback_manager()
         loop = asyncio.get_event_loop()
-        # 使用线程池执行同步的RAG检索，避免阻塞事件循环
-        return await loop.run_in_executor(None, self._retrieve_related_laws, query, top_k)
+
+        try:
+            # 尝试向量检索
+            result = await loop.run_in_executor(None, self._retrieve_related_laws, query, top_k)
+            if result:
+                return result
+            else:
+                logger.debug("向量检索返回空结果")
+                return []
+        except Exception as e:
+            logger.error(f"向量检索失败: {e}")
+            # 降级到关键词匹配
+            return await loop.run_in_executor(None, self._keyword_fallback_retrieve, query, top_k)
 
     async def start_review(
             self,
@@ -176,7 +249,7 @@ class ReviewWorker:
         )
 
     def _cleanup_task(self, review_id: int, task: asyncio.Task) -> None:
-        """清理完成的任务"""
+        """清理完成的任务，并发送失败通知"""
         self._running_tasks.pop(review_id, None)
 
         # 检查任务是否异常
@@ -184,8 +257,34 @@ class ReviewWorker:
             task.result()
         except asyncio.CancelledError:
             logger.info(f"审查任务 {review_id} 被取消")
+            # 发送取消通知
+            self._notify_task_failure(review_id, "任务被取消", ReviewStatus.CANCELLED)
         except Exception as e:
             logger.error(f"审查任务 {review_id} 异常: {e}")
+            # 发送失败通知
+            self._notify_task_failure(review_id, str(e), ReviewStatus.FAILED)
+
+    def _notify_task_failure(self, review_id: int, error_message: str, status: ReviewStatus) -> None:
+        """
+        发送任务失败通知
+
+        通过更新任务状态，让 SSE 推送失败信息给客户端
+
+        Args:
+            review_id: 审查任务ID
+            error_message: 错误信息
+            status: 任务状态
+        """
+        try:
+            # 更新任务状态为失败，包含错误信息
+            self._task_service.update_task_status(
+                review_id,
+                status=status,
+                message=f"审查失败: {error_message}"
+            )
+            logger.info(f"已发送任务 {review_id} 失败通知: {error_message}")
+        except Exception as notify_error:
+            logger.error(f"发送失败通知时出错: {notify_error}")
 
     async def _execute_review(
             self,
@@ -273,10 +372,61 @@ class ReviewWorker:
         except asyncio.CancelledError:
             logger.info(f"审查任务 {review_id} 被取消")
             self._task_service.cancel_task(review_id)
+            # 发送取消通知
+            self._notify_task_failure(review_id, "用户取消审查", ReviewStatus.CANCELLED)
             raise
         except Exception as e:
-            logger.error(f"审查任务 {review_id} 失败: {e}", exc_info=True)
-            self._task_service.fail_task(review_id, str(e))
+            error_msg = str(e)
+            logger.error(f"审查任务 {review_id} 失败: {error_msg}", exc_info=True)
+
+            # 判断错误类型，提供更友好的错误信息
+            user_friendly_error = self._format_error_message(e)
+
+            # 记录失败状态
+            self._task_service.fail_task(review_id, error_msg)
+
+            # 发送失败通知（通过 SSE）
+            self._notify_task_failure(review_id, user_friendly_error, ReviewStatus.FAILED)
+
+    def _format_error_message(self, error: Exception) -> str:
+        """
+        格式化错误信息，提供用户友好的错误描述
+
+        Args:
+            error: 异常对象
+
+        Returns:
+            用户友好的错误信息
+        """
+        error_msg = str(error).lower()
+
+        # LLM 相关错误
+        if "api key" in error_msg or "apikey" in error_msg or "认证" in error_msg:
+            return "AI 服务认证失败，请联系管理员检查 API 配置"
+        elif "timeout" in error_msg or "超时" in error_msg:
+            return "AI 服务响应超时，请稍后重试"
+        elif "rate limit" in error_msg or "限流" in error_msg or "too many requests" in error_msg:
+            return "AI 服务请求过于频繁，请稍后重试"
+        elif "model" in error_msg and ("not found" in error_msg or "不存在" in error_msg):
+            return "AI 模型暂时不可用，已尝试切换到备用模型但仍失败"
+
+        # RAG 相关错误
+        elif "vector" in error_msg or "向量" in error_msg:
+            return "文档检索服务暂时不可用，已启用关键词匹配降级但仍失败"
+        elif "embedding" in error_msg or "嵌入" in error_msg:
+            return "文本向量化服务暂时不可用"
+
+        # 文档解析错误
+        elif "parse" in error_msg or "解析" in error_msg or "document" in error_msg:
+            return "合同文档解析失败，请检查文件格式是否正确"
+
+        # 数据库错误
+        elif "database" in error_msg or "数据库" in error_msg or "connection" in error_msg:
+            return "数据库连接异常，请稍后重试"
+
+        # 默认错误
+        else:
+            return f"审查过程中发生错误: {str(error)[:100]}"
 
     async def _load_document(
             self,

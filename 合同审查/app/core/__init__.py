@@ -13,6 +13,18 @@ from 合同审查.app.core.database import (
     get_db_async,
     init_db,
     check_db_connection,
+    get_db_health,
+    pool_monitor,
+    DatabasePoolMonitor,
+)
+from 合同审查.app.core.fallback import (
+    get_llm_fallback_manager,
+    get_rag_fallback_manager,
+    LLMFallbackManager,
+    RAGFallbackManager,
+    FallbackStrategy,
+    FallbackResult,
+    with_llm_fallback,
 )
 
 __all__ = [
@@ -27,6 +39,17 @@ __all__ = [
     "get_db_async",
     "init_db",
     "check_db_connection",
+    "get_db_health",
+    "pool_monitor",
+    "DatabasePoolMonitor",
+    # 降级与熔断
+    "get_llm_fallback_manager",
+    "get_rag_fallback_manager",
+    "LLMFallbackManager",
+    "RAGFallbackManager",
+    "FallbackStrategy",
+    "FallbackResult",
+    "with_llm_fallback",
     # HTTP客户端
     "get_http_client",
     "http_client_context",

@@ -69,25 +69,15 @@ public class AdminServiceImpl implements AdminService {
 
     /**
      * 获取用户列表
+     * 优化：排序逻辑由 SQL ORDER BY 实现，避免内存排序
      */
     @Override
     public Result<PageResult<User>> getUserList(Integer pageNum, Integer pageSize) throws JsonProcessingException {
         pageNum = pageNum == null || pageNum < 1 ? 1 : pageNum;
         pageSize = pageSize == null || pageSize < 1 ? 10 : pageSize;
         PageHelper.startPage(pageNum, pageSize);
+        // SQL 已按角色排序（ADMIN在前）和创建时间倒序
         List<User> userList = authMapper.selectAllUsers();
-        userList.sort((u1, u2) -> {
-            if (u1.getRole() == u2.getRole()) {
-                return 0;
-            }
-            if (u1.getRole() != null && u1.getRole().name().equalsIgnoreCase("ADMIN")) {
-                return -1;
-            }
-            if (u2.getRole() != null && u2.getRole().name().equalsIgnoreCase("ADMIN")) {
-                return 1;
-            }
-            return 0;
-        });
         PageInfo<User> pageInfo = new PageInfo<>(userList);
         PageResult<User> pageResult = PageResult.of(
                 pageInfo.getPageNum(),

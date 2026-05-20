@@ -82,6 +82,8 @@
 | **数据库** | MySQL 8.0 + Redis 7.0 | 关系数据 + 缓存/会话管理 |
 | **文件存储** | 本地存储 / 阿里云 OSS | 合同文档存储 |
 | **向量数据库** | Chroma / FAISS | 法律知识库向量检索 |
+| **数据库迁移** | Alembic | SQLAlchemy 数据库版本管理 |
+| **服务监控** | 自定义健康检查 | /ready 接口、连接池监控 |
 
 ## 🚀 快速开始
 
@@ -152,6 +154,27 @@ python -m uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
 
 服务启动后访问：http://localhost:8001/docs
 
+#### Alembic 数据库迁移（可选）
+
+如果使用 Alembic 管理数据库迁移：
+
+```bash
+# 生成迁移脚本（根据模型变化自动生成）
+alembic revision --autogenerate -m "create contract table"
+
+# 查看当前版本
+alembic current
+
+# 升级到最新版本
+alembic upgrade head
+
+# 降级到上一个版本
+alembic downgrade -1
+
+# 查看历史版本
+alembic history
+```
+
 ### 5. 前端启动
 
 ```bash
@@ -173,6 +196,7 @@ npm run dev
 - **SpringBoot API**: http://localhost:8080/api
 - **FastAPI API**: http://localhost:8001/api/v1
 - **API 文档**: http://localhost:8080/swagger-ui.html
+- **健康检查**: http://localhost:8001/ready (服务就绪状态)
 
 ## 📁 项目结构
 
@@ -343,16 +367,77 @@ VITE_AI_API_URL=http://localhost:8001/api/v1
 
 ## 🐳 Docker 部署
 
-### 使用 Docker Compose（推荐）
+### 环境变量配置
+
+生产环境部署时，请通过环境变量配置所有敏感信息，**不要**将密码等敏感信息硬编码到配置文件中。
+
+#### 必需的环境变量
+
+| 类别 | 变量名 | 说明 | 示例 |
+|------|--------|------|------|
+| **数据库** | `DB_URL` | MySQL连接URL | `jdbc:mysql://mysql:3306/contract_review?useUnicode=true&characterEncoding=utf-8&useSSL=true&serverTimezone=Asia/Shanghai` |
+| | `DB_USERNAME` | 数据库用户名 | `contract_user` |
+| | `DB_PASSWORD` | 数据库密码 | `your-secure-password` |
+| **Redis** | `REDIS_HOST` | Redis服务器地址 | `redis` |
+| | `REDIS_PORT` | Redis端口 | `6379` |
+| | `REDIS_PASSWORD` | Redis密码 | `your-redis-password` |
+| | `REDIS_DATABASE` | Redis数据库索引 | `0` |
+| **JWT** | `JWT_SECRET` | JWT签名密钥（至少32位） | `your-256-bit-secret-key-here-must-be-long-enough` |
+| **邮件** | `MAIL_HOST` | SMTP服务器地址 | `smtp.qq.com` |
+| | `MAIL_PORT` | SMTP端口 | `465` |
+| | `MAIL_USERNAME` | 邮箱账号 | `your-email@qq.com` |
+| | `MAIL_PASSWORD` | 邮箱授权码/密码 | `your-app-password` |
+| **FastAPI** | `FASTAPI_BASE_URL` | FastAPI服务地址 | `http://fastapi:8001` |
+| **OSS** | `OSS_ENDPOINT` | OSS服务端点 | `oss-cn-beijing.aliyuncs.com` |
+| | `OSS_BUCKET` | OSS存储桶名称 | `your-bucket-name` |
+| | `OSS_REGION` | OSS区域 | `cn-beijing` |
+| | `OSS_ACCESS_KEY_ID` | 阿里云AccessKey ID | `your-access-key-id` |
+| | `OSS_ACCESS_KEY_SECRET` | 阿里云AccessKey Secret | `your-access-key-secret` |
+
+### 方式一：Docker Compose 部署（推荐）
+
+#### 1. 创建环境变量文件
+
+创建 `.env` 文件：
+
+```bash
+# 数据库配置
+DB_URL=jdbc:mysql://mysql:3306/contract_review?useUnicode=true&characterEncoding=utf-8&useSSL=true&serverTimezone=Asia/Shanghai
+DB_USERNAME=contract_user
+DB_PASSWORD=your_secure_db_password
+
+# Redis配置
+REDIS_HOST=redis
+REDIS_PORT=6379
+REDIS_PASSWORD=your_secure_redis_password
+REDIS_DATABASE=0
+
+# JWT配置
+JWT_SECRET=your-256-bit-secret-key-here-must-be-long-enough-for-security
+
+# 邮件配置
+MAIL_HOST=smtp.qq.com
+MAIL_PORT=465
+MAIL_USERNAME=your-email@qq.com
+MAIL_PASSWORD=your-app-password
+
+# FastAPI配置
+FASTAPI_BASE_URL=http://fastapi:8001
+
+# OSS配置
+OSS_ENDPOINT=oss-cn-beijing.aliyuncs.com
+OSS_BUCKET=your-bucket-name
+OSS_REGION=cn-beijing
+OSS_ACCESS_KEY_ID=your-access-key-id
+OSS_ACCESS_KEY_SECRET=your-access-key-secret
+```
+
+#### 2. 启动服务
 
 ```bash
 # 克隆项目
 git clone <repository-url>
 cd 合同审查agent
-
-# 创建环境配置文件
-cp .env.example .env
-# 编辑 .env 文件，配置数据库密码和 API 密钥
 
 # 启动所有服务
 docker-compose up -d
@@ -465,6 +550,126 @@ networks:
     driver: bridge
 ```
 
+### 方式二：传统服务器部署（Linux Systemd）
+
+#### 1. 创建服务配置文件
+
+创建 `/etc/systemd/system/contract-review.service`：
+
+```ini
+[Unit]
+Description=Contract Review System
+After=network.target
+
+[Service]
+Type=simple
+User=contract
+WorkingDirectory=/opt/contract-review
+ExecStart=/usr/bin/java -jar contract-review.jar
+Restart=always
+RestartSec=10
+
+# 环境变量
+Environment="DB_URL=jdbc:mysql://localhost:3306/contract_review?useUnicode=true&characterEncoding=utf-8&useSSL=true&serverTimezone=Asia/Shanghai"
+Environment="DB_USERNAME=contract_user"
+Environment="DB_PASSWORD=your_secure_db_password"
+Environment="REDIS_HOST=localhost"
+Environment="REDIS_PORT=6379"
+Environment="REDIS_PASSWORD=your_secure_redis_password"
+Environment="JWT_SECRET=your-256-bit-secret-key-here-must-be-long-enough-for-security"
+Environment="MAIL_HOST=smtp.qq.com"
+Environment="MAIL_PORT=465"
+Environment="MAIL_USERNAME=your-email@qq.com"
+Environment="MAIL_PASSWORD=your-app-password"
+Environment="FASTAPI_BASE_URL=http://localhost:8001"
+Environment="OSS_ENDPOINT=oss-cn-beijing.aliyuncs.com"
+Environment="OSS_BUCKET=your-bucket-name"
+Environment="OSS_REGION=cn-beijing"
+Environment="OSS_ACCESS_KEY_ID=your-access-key-id"
+Environment="OSS_ACCESS_KEY_SECRET=your-access-key-secret"
+
+[Install]
+WantedBy=multi-user.target
+```
+
+#### 2. 启动服务
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable contract-review
+sudo systemctl start contract-review
+```
+
+### 方式三：Kubernetes 部署
+
+#### 1. ConfigMap 配置
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: contract-review-config
+data:
+  DB_URL: "jdbc:mysql://mysql-service:3306/contract_review?useUnicode=true&characterEncoding=utf-8&useSSL=true&serverTimezone=Asia/Shanghai"
+  REDIS_HOST: "redis-service"
+  REDIS_PORT: "6379"
+  REDIS_DATABASE: "0"
+  MAIL_HOST: "smtp.qq.com"
+  MAIL_PORT: "465"
+  FASTAPI_BASE_URL: "http://fastapi-service:8001"
+  OSS_ENDPOINT: "oss-cn-beijing.aliyuncs.com"
+  OSS_REGION: "cn-beijing"
+```
+
+#### 2. Secret 配置
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: contract-review-secrets
+type: Opaque
+stringData:
+  DB_USERNAME: "contract_user"
+  DB_PASSWORD: "your_secure_db_password"
+  REDIS_PASSWORD: "your_secure_redis_password"
+  JWT_SECRET: "your-256-bit-secret-key-here-must-be-long-enough-for-security"
+  MAIL_USERNAME: "your-email@qq.com"
+  MAIL_PASSWORD: "your-app-password"
+  OSS_BUCKET: "your-bucket-name"
+  OSS_ACCESS_KEY_ID: "your-access-key-id"
+  OSS_ACCESS_KEY_SECRET: "your-access-key-secret"
+```
+
+#### 3. Deployment 配置
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: contract-review
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: contract-review
+  template:
+    metadata:
+      labels:
+        app: contract-review
+    spec:
+      containers:
+        - name: app
+          image: contract-review:latest
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: contract-review-config
+            - secretRef:
+                name: contract-review-secrets
+```
+
 ## ☁️ 生产部署
 
 ### 部署架构建议
@@ -503,7 +708,32 @@ networks:
 - [ ] 启用 Redis 持久化
 - [ ] 配置 API 限流和防刷
 
-详细部署指南见 [Cloudflare部署指南.md](Cloudflare部署指南.md)
+### 生产环境安全建议
+
+1. **密钥管理**：使用专业的密钥管理工具（如 HashiCorp Vault、AWS Secrets Manager、阿里云 KMS）
+2. **最小权限原则**：数据库用户只授予必要的权限（SELECT/INSERT/UPDATE/DELETE），禁止授予 DROP、GRANT 等高危权限
+3. **定期轮换**：定期更换密码和密钥，建议每 90 天轮换一次
+4. **网络隔离**：生产环境数据库不暴露公网访问，使用内网或 VPC 隔离
+5. **日志脱敏**：确保日志中不输出敏感信息（密码、Token、身份证号等）
+6. **HTTPS 强制**：生产环境强制使用 HTTPS，配置 HSTS 头部
+7. **容器安全**：Docker 镜像使用非 root 用户运行，定期扫描镜像漏洞
+8. **资源限制**：为容器配置 CPU/内存限制，防止资源耗尽攻击
+
+### 验证配置
+
+启动应用后，检查日志确认配置已正确加载：
+
+```bash
+# Docker 部署查看日志
+docker logs contract-review-app
+
+# Systemd 部署查看日志
+sudo journalctl -u contract-review -f
+```
+
+确认没有明文密码输出，且应用正常启动。
+
+详细部署指南见 [DEPLOY.md](ContractReview/DEPLOY.md) | [Cloudflare部署指南.md](Cloudflare部署指南.md)
 
 ## 🛠️ 开发指南
 
@@ -620,6 +850,91 @@ ci: CI/CD 相关改动
   - 企业内部制度
 
 ## 📈 性能优化
+
+### 服务预热
+
+FastAPI 服务启动时自动预热以下资源，减少首次请求延迟：
+
+| 预热资源 | 说明 | 状态检查 |
+|----------|------|----------|
+| **Embedding 模型** | 文本向量化模型预加载 | `/ready` 接口 |
+| **向量数据库** | Chroma/FAISS 索引加载 | `/ready` 接口 |
+| **法律文档检索器** | RAG 检索器初始化 | `/ready` 接口 |
+| **LLM 链** | 风险分析链、合规检查链 | `/ready` 接口 |
+
+**健康检查接口**:
+```bash
+# 检查服务就绪状态
+curl http://localhost:8001/ready
+
+# 返回 200 - 服务就绪
+# 返回 503 - 服务未就绪（预热中或异常）
+```
+
+### 异常降级与熔断
+
+系统实现了多级降级策略，确保服务高可用：
+
+#### LLM 降级策略
+
+当主模型调用失败时，自动降级到备用模型：
+
+```
+qwen3.6-flash (主模型) 
+    ↓ 失败
+qwen3.6-plus (备用1)
+    ↓ 失败
+qwen-turbo (备用2)
+    ↓ 失败
+qwen-plus (备用3)
+```
+
+- **熔断机制**: 连续失败 5 次后打开熔断器，30 秒后自动恢复
+- **超时控制**: 单次调用 150 秒超时
+
+#### RAG 降级策略
+
+当向量检索失败时，降级到关键词匹配：
+
+```
+向量检索 (Chroma/FAISS)
+    ↓ 失败
+关键词匹配降级
+```
+
+#### 任务失败通知
+
+审查任务失败时，通过 SSE 实时推送错误信息：
+
+```javascript
+// 客户端接收失败通知示例
+eventSource.onmessage = (event) => {
+  const data = JSON.parse(event.data);
+  if (data.status === 'FAILED') {
+    console.error('审查失败:', data.message);
+    // 显示错误提示
+  }
+};
+```
+
+### 数据库连接池监控
+
+SQLAlchemy 连接池实时监控指标：
+
+```bash
+# 获取数据库健康状态
+curl http://localhost:8001/api/v1/health/db
+
+# 返回示例
+{
+  "status": "healthy",
+  "pool_size": 5,
+  "max_overflow": 10,
+  "checked_in": 4,
+  "checked_out": 1,
+  "overflow": 0
+}
+```
 
 ### 缓存策略
 

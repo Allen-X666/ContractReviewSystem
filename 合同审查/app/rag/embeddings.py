@@ -4,12 +4,15 @@
 提供文本向量嵌入功能，支持多种嵌入模型。
 """
 
+import logging
 import os
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Union
 import numpy as np
 
 from 合同审查.app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 class BaseEmbeddings(ABC):
@@ -155,10 +158,37 @@ class HuggingFaceEmbeddings(BaseEmbeddings):
         self.normalize_embeddings = normalize_embeddings
 
         # 对于多模态模型，使用不同的初始化方式
+        # 先尝试使用本地缓存，如果失败则联网下载
         if "vl" in self.model_name.lower():
-            self.model = SentenceTransformer(self.model_name, device=self.device, trust_remote_code=True)
+            try:
+                self.model = SentenceTransformer(
+                    self.model_name,
+                    device=self.device,
+                    trust_remote_code=True,
+                    local_files_only=True
+                )
+                logger.info(f"Embedding 模型从本地缓存加载成功: {self.model_name}")
+            except Exception as e:
+                logger.warning(f"本地缓存加载失败，尝试联网下载: {e}")
+                self.model = SentenceTransformer(
+                    self.model_name,
+                    device=self.device,
+                    trust_remote_code=True
+                )
         else:
-            self.model = SentenceTransformer(self.model_name, device=self.device)
+            try:
+                self.model = SentenceTransformer(
+                    self.model_name,
+                    device=self.device,
+                    local_files_only=True
+                )
+                logger.info(f"Embedding 模型从本地缓存加载成功: {self.model_name}")
+            except Exception as e:
+                logger.warning(f"本地缓存加载失败，尝试联网下载: {e}")
+                self.model = SentenceTransformer(
+                    self.model_name,
+                    device=self.device
+                )
 
     def _check_cuda(self) -> bool:
         """检查 CUDA 是否可用"""

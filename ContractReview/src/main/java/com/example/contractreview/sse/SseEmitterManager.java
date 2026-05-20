@@ -31,21 +31,33 @@ public class SseEmitterManager {
     private static final Long DEFAULT_TIMEOUT = 0L;
 
     /**
-     * 创建 SSE 连接
+     * 创建 SSE 连接（使用默认超时时间）
      *
      * @param userId 用户ID
      * @return SseEmitter 实例
      */
     public SseEmitter createEmitter(Long userId) {
+        return createEmitter(userId, DEFAULT_TIMEOUT);
+    }
+
+    /**
+     * 创建 SSE 连接（支持自定义超时时间）
+     *
+     * @param userId  用户ID
+     * @param timeout 超时时间（毫秒），0表示永不超时
+     * @return SseEmitter 实例
+     */
+    public SseEmitter createEmitter(Long userId, Long timeout) {
         // 如果已存在连接，先移除旧的
         removeEmitter(userId);
 
-        // 创建新的 SseEmitter，0表示永不超时
-        SseEmitter emitter = new SseEmitter(DEFAULT_TIMEOUT);
+        // 创建新的 SseEmitter
+        SseEmitter emitter = new SseEmitter(timeout);
 
         // 存储连接
         emitters.put(userId, emitter);
-        log.info("SSE连接已创建，用户ID: {}，当前连接数: {}", userId, emitters.size());
+        log.info("SSE连接已创建，用户ID: {}，超时时间: {}ms，当前连接数: {}", 
+                userId, timeout, emitters.size());
 
         // 连接完成时的回调
         emitter.onCompletion(() -> {
@@ -105,7 +117,9 @@ public class SseEmitterManager {
     public boolean sendToUser(Long userId, String eventName, Object data) {
         SseEmitter emitter = emitters.get(userId);
         if (emitter == null) {
-            log.warn("用户 {} 未建立SSE连接，无法发送消息", userId);
+            // 输出当前所有连接的userId，帮助排查问题
+            log.warn("用户 {} 未建立SSE连接，无法发送消息。当前连接的用户ID列表: {}", 
+                    userId, emitters.keySet());
             return false;
         }
 

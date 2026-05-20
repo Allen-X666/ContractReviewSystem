@@ -16,11 +16,13 @@ import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
+import java.net.SocketTimeoutException;
 import java.util.Map;
 
 @Slf4j
@@ -50,6 +52,28 @@ public class FastApiClient {
     }
 
     /**
+     * 处理FastAPI调用异常，区分超时场景返回友好提示
+     */
+    private RuntimeException handleFastApiException(Exception e, String operation) {
+        // 判断是否为超时异常
+        if (e instanceof ResourceAccessException) {
+            Throwable cause = e.getCause();
+            if (cause instanceof SocketTimeoutException) {
+                log.error("FastAPI {} 超时: {}", operation, e.getMessage());
+                return new RuntimeException("AI 服务繁忙，请稍后重试");
+            }
+        }
+        // 检查异常消息中是否包含超时关键词
+        String message = e.getMessage();
+        if (message != null && (message.contains("timeout") || message.contains("timed out") || message.contains("Read timed out"))) {
+            log.error("FastAPI {} 超时: {}", operation, message);
+            return new RuntimeException("AI 服务繁忙，请稍后重试");
+        }
+        log.error("调用 FastAPI {} 失败: {}", operation, message, e);
+        return new RuntimeException("AI 服务调用失败: " + message);
+    }
+
+    /**
      * 发起合同审查
      */
     public FastApiResult<Map<String, Object>> startReview(StartReviewDTO dto, String authorization) {
@@ -76,8 +100,7 @@ public class FastApiClient {
                     .retrieve()
                     .body(new org.springframework.core.ParameterizedTypeReference<FastApiResult<Map<String, Object>>>() {});
         } catch (RestClientException e) {
-            log.error("调用 FastAPI 发起审查失败: {}", e.getMessage(), e);
-            throw new RuntimeException("AI 服务调用失败: " + e.getMessage());
+            throw handleFastApiException(e, "发起审查");
         } catch (Exception e) {
             log.error("序列化审查选项失败: {}", e.getMessage(), e);
             throw new RuntimeException("请求参数处理失败: " + e.getMessage());

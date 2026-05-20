@@ -500,7 +500,15 @@ def get_sys_information(message: str) -> list:
 
     :return: 通过相似性搜索后的答案
     """
-    return search_similar_knowledge(message)
+    import asyncio
+    try:
+        loop = asyncio.get_running_loop()
+        # 如果在异步上下文中，使用 run_coroutine_threadsafe
+        future = asyncio.run_coroutine_threadsafe(search_similar_knowledge(message), loop)
+        return future.result()
+    except RuntimeError:
+        # 如果没有运行的事件循环，使用 asyncio.run
+        return asyncio.run(search_similar_knowledge(message))
 
 
 @tool

@@ -391,7 +391,9 @@ import { processAnnouncementContent } from '@/utils/markdown'
 import { getContractStats } from '@/api/contract'
 import { getNoticeList } from '@/api/admin'
 import { getReviewHistory } from '@/api/review'
-import * as echarts from 'echarts'
+// 引入 ECharts 按需加载配置
+import '@/utils/echarts'
+import * as echarts from 'echarts/core'
 
 const router = useRouter()
 const userStore = useUserStore()
