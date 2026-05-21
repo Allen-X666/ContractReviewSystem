@@ -203,7 +203,7 @@ public class ReviewServiceImpl implements ReviewService {
                                     log.error("发送审查完成SSE通知失败, reviewId: {}", reviewId, e);
                                 }
                             } else {
-                                log.info("用户未开启邮件通知");
+                                log.info("用户未开启邮件通知"); 
                             }
                         }
                         emitter.complete();

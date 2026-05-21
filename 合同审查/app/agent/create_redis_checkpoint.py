@@ -15,6 +15,7 @@ from langgraph.checkpoint.serde.types import ERROR, SCHEDULED, INTERRUPT, RESUME
 from redis.asyncio import Redis
 
 from 合同审查.app.core.config import settings
+from 合同审查.app.utils.context_truncation import trim_messages_by_checkpoint
 
 logger = logging.getLogger(__name__)
 
@@ -148,6 +149,9 @@ class SimpleRedisCheckpointSaver(BaseCheckpointSaver):
         parent_checkpoint_id = config.get("configurable", {}).get("checkpoint_id")
 
         try:
+            # 对 checkpoint 中的消息进行截断（滑动窗口，保留最近 N 条）
+            checkpoint = trim_messages_by_checkpoint(checkpoint)
+
             # 序列化数据（metadata 可能是 TypedDict 或普通 dict）
             metadata_dict = dict(metadata) if metadata else {}
             saved_data = {

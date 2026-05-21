@@ -1,4 +1,5 @@
-import { createRouter, createWebHistory, defineAsyncComponent } from 'vue-router'
+import { createRouter, createWebHistory } from 'vue-router'
+import { defineAsyncComponent } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { ROUTE_NAMES } from '@/utils/constants'
 import { ElLoading } from 'element-plus'

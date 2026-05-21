@@ -118,6 +118,12 @@ class Settings(BaseSettings):
     REDIS_SOCKET_TIMEOUT: int = 5
     REDIS_HEALTH_CHECK_INTERVAL: int = 30
 
+    # ==================== 对话上下文管理配置 ====================
+    # 最大保留的对话消息数量（滑动窗口），超过则截断早期消息
+    MAX_HISTORY_MESSAGES: int = 20
+    # 是否启用上下文截断
+    CONTEXT_TRUNCATION_ENABLED: bool = True
+
     # ==================== SpringBoot 服务配置 ====================
     SPRINGBOOT_BASE_URL: str = "http://localhost:8080/api"
     SPRINGBOOT_TIMEOUT: float = 30.0  # 秒
