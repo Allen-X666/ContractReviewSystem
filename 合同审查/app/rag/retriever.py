@@ -943,6 +943,7 @@ async def get_law_retriever() -> "Retriever":
     检索相关法律条款。
 
     优先使用预热服务中已加载的 Embedding 模型，避免重复加载。
+    支持混合检索（向量检索 + 关键词检索）。
 
     Returns:
         Retriever: 法律文档检索器实例
@@ -971,8 +972,57 @@ async def get_law_retriever() -> "Retriever":
             model=settings.EMBEDDING_MODEL,
         )
 
-    retriever = Retriever(retriever_type="vector")
-    retriever.retriever = LawDocumentRetriever(embeddings=embeddings)
+    # 判断是否启用混合检索
+    if settings.HYBRID_RETRIEVAL_ENABLED:
+        logger.info("启用混合检索模式（向量检索 + 关键词检索）")
+
+        # 创建向量检索器
+        vector_store = get_vector_store()
+        vector_retriever = VectorRetriever(
+            vector_store=vector_store,
+            embeddings=embeddings,
+        )
+
+        # 创建关键词检索器（从向量存储加载所有文档）
+        keyword_retriever = None
+        try:
+            # 获取所有法律文档用于关键词检索
+            all_clauses = []
+            law_stores = get_law_vector_stores()
+            for store in law_stores:
+                if hasattr(store, 'get_all_documents'):
+                    records = store.get_all_documents()
+                    for record in records:
+                        chunk = ClauseChunk(
+                            clause_id=record.clause_id,
+                            clause_no=record.clause_no,
+                            clause_content=record.clause_content,
+                            clause_title=record.clause_title,
+                            metadata=record.metadata,
+                        )
+                        all_clauses.append(chunk)
+
+            if all_clauses:
+                keyword_retriever = KeywordRetriever(clauses=all_clauses)
+                logger.info(f"关键词检索器初始化完成，共加载 {len(all_clauses)} 条条款")
+            else:
+                logger.warning("未找到法律文档，关键词检索器将不可用")
+        except Exception as e:
+            logger.warning(f"关键词检索器初始化失败: {e}，将仅使用向量检索")
+
+        # 创建混合检索器
+        retriever = Retriever(retriever_type="hybrid")
+        retriever.retriever = HybridRetriever(
+            vector_retriever=vector_retriever,
+            keyword_retriever=keyword_retriever,
+            vector_weight=settings.HYBRID_VECTOR_WEIGHT,
+            keyword_weight=settings.HYBRID_KEYWORD_WEIGHT,
+        )
+        logger.info(f"混合检索器初始化完成 | 向量权重: {settings.HYBRID_VECTOR_WEIGHT} | 关键词权重: {settings.HYBRID_KEYWORD_WEIGHT}")
+    else:
+        logger.info("使用纯向量检索模式")
+        retriever = Retriever(retriever_type="vector")
+        retriever.retriever = LawDocumentRetriever(embeddings=embeddings)
 
     _law_retriever_cache = retriever
     logger.info("法律文档检索器初始化完成")

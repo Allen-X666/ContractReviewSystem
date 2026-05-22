@@ -596,6 +596,13 @@ async function handleSaveProfile() {
       email: editProfileForm.value.email,
       phone: editProfileForm.value.phone
     }
+    // 同步更新全局用户状态，使顶部导航栏等位置实时更新
+    userStore.setUserInfo({
+      ...userStore.userInfo,
+      nickName: editProfileForm.value.nickName,
+      email: editProfileForm.value.email,
+      phone: editProfileForm.value.phone
+    })
     editProfileDialogVisible.value = false
   } catch (error) {
     console.error('保存个人信息失败:', error)

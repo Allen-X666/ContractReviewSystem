@@ -4,6 +4,7 @@ Agent 工具函数
 使用 @tool 装饰器定义的工具函数,供 LangChain Agent 调用。
 """
 
+import asyncio
 import logging
 from typing import Optional
 
@@ -37,8 +38,8 @@ from 合同审查.app.agent.utils import (
     search_similar_knowledge,
     get_user_store_path
 )
-from 合同审查.app.core.http_client import springboot_get, springboot_post
-from 合同审查.model.get_user_info import SysUser
+from 合同审查.app.core.http_client import springboot_get
+from 合同审查.model.get_user_info import SysUser, GetUserInfo
 
 logger = logging.getLogger(__name__)
 
@@ -378,7 +379,7 @@ def download_file(contract_id: Optional[int] = None, review_id: Optional[int] = 
 
 
 @tool
-def get_user_info() -> SysUser:
+def get_user_info() -> dict:
     """
     获取用户个人信息（脱敏后）
     智能识别用户意图，用户获取其个人信息（脱敏后）
@@ -396,13 +397,26 @@ def get_user_info() -> SysUser:
         "/auth/user-info",
         token=get_request_token()
     )
-    user_data = user_info.json()
-    logger.info(f"userInfo: {user_data}")
-    return user_data
+    response_data = user_info.json()
+    logger.info(f"userInfo: {response_data}")
+
+    # 从响应中提取实际的 user 数据（在 data 字段中）
+    user_data = response_data.get('data', {}) if isinstance(response_data, dict) else {}
+
+    # 过滤掉 avatar 字段，只返回指定字段
+    filtered_data = {
+        'username': user_data.get('username'),
+        'nickName': user_data.get('nickName'),
+        'email': user_data.get('email'),
+        'phone': user_data.get('phone'),
+        'role': user_data.get('role'),
+        'createdAt': user_data.get('createdAt')
+    }
+    return filtered_data
 
 
 @tool
-def update_user_information(message: str) -> str:
+async def update_user_information(message: str) -> str:
     """
     更新用户信息（支持确认机制）
     
@@ -438,7 +452,7 @@ def update_user_information(message: str) -> str:
         return "❌ 错误：未获取到认证信息，请重新登录后再试"
 
     # 检查是否有待确认的更新
-    pending_update = get_pending_user_update(token)
+    pending_update = await get_pending_user_update(token)
 
     # 处理确认/取消操作
     message_lower = message.strip().lower()
@@ -449,10 +463,10 @@ def update_user_information(message: str) -> str:
         # 用户正在回复待确认的更新
         if any(keyword in message_lower for keyword in confirm_keywords):
             # 执行更新
-            return _execute_user_update(pending_update, token)
+            return await _execute_user_update(pending_update, token)
         elif any(keyword in message_lower for keyword in cancel_keywords):
             # 取消更新
-            clear_pending_user_update(token)
+            await clear_pending_user_update(token)
             return "❌ 已取消修改操作。"
         else:
             # 未识别确认或取消，继续等待确认
@@ -480,12 +494,12 @@ def update_user_information(message: str) -> str:
         return f"❌ 验证失败：{validation_result['message']}"
 
     # 获取当前用户信息（用于显示旧值）
-    current_value = _get_current_user_field(field, token)
+    current_value = await _get_current_user_field(field, token)
 
     # 存储待确认的更新信息
     update_info['current_value'] = current_value
     update_info['token'] = token
-    set_pending_user_update(token, update_info)
+    await set_pending_user_update(token, update_info)
 
     # 返回确认询问
     return _format_confirmation_request(update_info, current_value)
@@ -528,7 +542,7 @@ def get_store_path(message: str) -> dict:
 
 
 @tool
-def update_store_path(message: str) -> str:
+async def update_store_path(message: str) -> str:
     """
     修改用户设置的存储路径（支持确认机制）
 
@@ -568,7 +582,7 @@ def update_store_path(message: str) -> str:
         return "❌ 错误：未获取到认证信息，请重新登录后再试"
 
     # 检查是否有待确认的更新
-    pending_update = get_pending_storage_update(token)
+    pending_update = await get_pending_storage_update(token)
 
     # 处理确认/取消操作
     message_lower = message.strip().lower()
@@ -579,10 +593,10 @@ def update_store_path(message: str) -> str:
         # 用户正在回复待确认的更新
         if any(keyword in message_lower for keyword in confirm_keywords):
             # 执行更新
-            return _execute_storage_update(pending_update, token)
+            return await _execute_storage_update(pending_update, token)
         elif any(keyword in message_lower for keyword in cancel_keywords):
             # 取消更新
-            clear_pending_storage_update(token)
+            await clear_pending_storage_update(token)
             return "❌ 已取消修改操作。"
         else:
             # 未识别确认或取消，继续等待确认
@@ -600,7 +614,7 @@ def update_store_path(message: str) -> str:
                 请告诉我您想修改哪个路径？"""
 
     # 获取当前存储路径
-    current_paths = _get_current_storage_paths(token)
+    current_paths = await _get_current_storage_paths(token)
     current_upload = current_paths.get("uploadPath", "")
     current_review = current_paths.get("reviewPath", "")
 
@@ -628,7 +642,7 @@ def update_store_path(message: str) -> str:
             return f"❌ 审查路径格式不正确：{new_review}\n路径不能包含特殊字符 < > : \" | ? *"
 
     # 存储待确认的更新信息
-    set_pending_storage_update(token, final_update_info)
+    await set_pending_storage_update(token, final_update_info)
 
     # 返回确认询问
     return _format_storage_confirmation_request(final_update_info)

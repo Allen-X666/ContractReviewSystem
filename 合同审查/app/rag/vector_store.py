@@ -290,6 +290,43 @@ class ChromaVectorStore(BaseVectorStore):
         """返回存储的向量数量"""
         return self.collection.count()
 
+    def get_all_documents(self) -> List[ClauseVectorRecord]:
+        """
+        获取所有文档记录
+
+        Returns:
+            List[ClauseVectorRecord]: 所有文档记录列表
+        """
+        try:
+            # 获取集合中的所有文档
+            result = self.collection.get(
+                include=["metadatas", "documents"]
+            )
+
+            records = []
+            if result["ids"]:
+                for i, doc_id in enumerate(result["ids"]):
+                    metadata = result["metadatas"][i] if result["metadatas"] else {}
+
+                    record = ClauseVectorRecord(
+                        id=doc_id,
+                        vector=[],  # 不返回向量以节省内存
+                        clause_id=metadata.get("clause_id", ""),
+                        clause_no=metadata.get("clause_no", ""),
+                        clause_content=result["documents"][i] if result["documents"] else "",
+                        clause_title=metadata.get("clause_title") or None,
+                        metadata={k: v for k, v in metadata.items()
+                                 if k not in ["clause_id", "clause_no", "clause_title"]},
+                    )
+                    records.append(record)
+
+            logger.info(f"【Chroma向量库】获取所有文档: {len(records)} 条记录")
+            return records
+
+        except Exception as e:
+            logger.error(f"【Chroma向量库】获取所有文档失败: {e}")
+            return []
+
 
 class FAISSVectorStore(BaseVectorStore):
     """

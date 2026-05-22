@@ -11,6 +11,8 @@ from typing import Optional, Dict, Any
 from dataclasses import dataclass, field
 from enum import Enum
 
+from 合同审查.app.utils.redis_lock import RedisLock, ResourceLockedException
+
 logger = logging.getLogger(__name__)
 
 
@@ -161,16 +163,50 @@ class WarmupService:
         """
         执行服务预热
 
-        在后台异步加载所有需要的资源
+        在后台异步加载所有需要的资源。
+        使用分布式锁防止多实例同时预热，浪费资源。
 
         Returns:
             ServiceReadiness: 服务就绪状态
         """
         import time
 
+        # 【分布式锁】防止多实例同时预热
+        lock = RedisLock(
+            lock_key="warmup:service",
+            timeout=120,  # 2分钟超时
+            auto_extend=True  # 自动续期
+        )
+        
+        try:
+            # 非阻塞获取锁
+            acquired = await lock.acquire(blocking=False)
+            if not acquired:
+                logger.info("其他实例正在执行预热，本实例跳过")
+                # 等待其他实例预热完成
+                max_wait = 60  # 最多等待60秒
+                start_wait = time.time()
+                while (self._readiness.overall_status != WarmupStatus.COMPLETED and
+                       time.time() - start_wait < max_wait):
+                    await asyncio.sleep(0.5)
+                
+                if self._readiness.overall_status == WarmupStatus.COMPLETED:
+                    logger.info("其他实例预热完成，本实例直接使用")
+                else:
+                    logger.warning("等待其他实例预热超时")
+                
+                return self._readiness
+            
+            logger.info("获取到预热分布式锁，开始执行预热")
+        except ResourceLockedException:
+            logger.warning("获取预热锁失败，跳过预热")
+            return self._readiness
+        
+        # 获取锁后执行业务逻辑
         async with self._lock:
             if self._readiness.overall_status in [WarmupStatus.COMPLETED, WarmupStatus.IN_PROGRESS]:
                 logger.info(f"预热已在{self._readiness.overall_status.value}状态，跳过")
+                await lock.release()
                 return self._readiness
 
             self._readiness.start_time = time.time()
@@ -224,6 +260,10 @@ class WarmupService:
                 f"服务预热完成，状态: {self._readiness.overall_status.value}, "
                 f"耗时: {self._readiness.duration_ms:.2f}ms"
             )
+
+            # 释放分布式锁
+            await lock.release()
+            logger.debug("已释放预热分布式锁")
 
             return self._readiness
 

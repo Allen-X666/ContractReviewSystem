@@ -178,14 +178,14 @@ async def _execute_user_update(update_info: Dict[str, Any], token: str) -> str:
         # 清除待确认的更新
         await clear_pending_user_update(token)
 
-        if response.status_code == 200:
-            result = response.json()
+        if response.status == 200:
+            result = await response.json()
             if result.get("code") == 200:
                 return f"✅ {field_name}修改成功！\n\n新的{field_name}：**{value}**"
             else:
                 return f"❌ 修改失败：{result.get('message', '未知错误')}"
         else:
-            return f"❌ 修改失败：HTTP {response.status_code}"
+            return f"❌ 修改失败：HTTP {response.status}"
 
     except Exception as e:
         logger.error(f"更新用户信息失败: {e}")
@@ -196,9 +196,9 @@ async def _execute_user_update(update_info: Dict[str, Any], token: str) -> str:
 async def _get_current_user_field(field: str, token: str) -> str:
     """获取当前用户的字段值（异步版本）"""
     try:
-        response = await async_springboot_get("/user/profile", token=token)
-        if response.status_code == 200:
-            result = response.json()
+        response = await async_springboot_get("/auth/user-info", token=token)
+        if response.status == 200:
+            result = await response.json()
             if result.get("code") == 200:
                 data = result.get("data", {})
                 if field == "nickName":
@@ -211,7 +211,6 @@ async def _get_current_user_field(field: str, token: str) -> str:
                     return "******"  # 密码不显示
     except Exception as e:
         logger.warning(f"获取当前用户信息失败: {e}")
-
     return ""
 
 
@@ -358,8 +357,8 @@ async def _get_current_storage_paths(token: str) -> Dict[str, str]:
     """获取当前用户的存储路径配置（异步版本）"""
     try:
         response = await async_springboot_get("/system/config/storage", token=token)
-        if response.status_code == 200:
-            result = response.json()
+        if response.status == 200:
+            result = await response.json()
             if result.get("code") == 200:
                 data = result.get("data", {})
                 return {
@@ -481,8 +480,8 @@ async def _execute_storage_update(update_info: Dict[str, Any], token: str) -> st
 
         await clear_pending_storage_update(token)
 
-        if response.status_code == 200:
-            result = response.json()
+        if response.status == 200:
+            result = await response.json()
             if result.get("code") == 200:
                 update_type = update_info.get("update_type")
                 if update_type == "upload":
@@ -494,7 +493,7 @@ async def _execute_storage_update(update_info: Dict[str, Any], token: str) -> st
             else:
                 return f"❌ 修改失败：{result.get('message', '未知错误')}"
         else:
-            return f"❌ 修改失败：HTTP {response.status_code}"
+            return f"❌ 修改失败：HTTP {response.status}"
 
     except Exception as e:
         logger.error(f"更新存储路径失败: {e}")

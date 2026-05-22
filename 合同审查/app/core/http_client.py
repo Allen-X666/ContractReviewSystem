@@ -446,10 +446,6 @@ async def async_springboot_get(
 
     Returns:
         ClientResponse 对象
-
-    Example:
-        >>> response = await async_springboot_get("/contract/list", token="xxx")
-        >>> data = await response.json()
     """
     async with AsyncSpringBootClient(token=token) as client:
         return await client.get(path, params=params, timeout=timeout)
@@ -474,13 +470,6 @@ async def async_springboot_post(
 
     Returns:
         ClientResponse 对象
-
-    Example:
-        >>> response = await async_springboot_post(
-        ...     "/review/start",
-        ...     token="xxx",
-        ...     json_data={"contractId": 123}
-        ... )
     """
     async with AsyncSpringBootClient(token=token) as client:
         return await client.post(path, json_data=json_data, data=data, timeout=timeout)
@@ -505,13 +494,6 @@ async def async_springboot_put(
 
     Returns:
         ClientResponse 对象
-
-    Example:
-        >>> response = await async_springboot_put(
-        ...     "/user/profile",
-        ...     token="xxx",
-        ...     json_data={"nickName": "新昵称"}
-        ... )
     """
     async with AsyncSpringBootClient(token=token) as client:
         return await client.put(path, json_data=json_data, data=data, timeout=timeout)

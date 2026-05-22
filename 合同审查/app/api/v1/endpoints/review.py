@@ -26,6 +26,7 @@ from 合同审查.app.utils import (
     validate_file_extension,
     parse_json_options,
 )
+from 合同审查.app.utils.redis_lock import RedisLock, ResourceLockedException
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -92,60 +93,90 @@ async def start_review(
     # 2. 生成唯一审查ID（使用自增整数）
     review_id = contract_id
 
-    # 3. 解析审查选项
-    options = parse_json_options(
-        review_options,
-        model_class=ReviewOptions,
-        default=ReviewOptions
+    # 3. 【分布式锁】防止同一合同被重复审查
+    lock = RedisLock(
+        lock_key=f"review:contract:{contract_id}",
+        timeout=300,  # 5分钟超时
+        auto_extend=True  # 自动续期，防止长任务锁过期
     )
-    logger.info(f"创建审查任务 - review_id: {review_id}, contract_id: {contract_id}")
-
-    # 4. 清理文件名并验证
-    safe_filename = sanitize_filename(file.filename)
-    file_ext = validate_file_extension(safe_filename)
-
-    # 5. 读取文件内容（必须在异步任务启动前读取）
+    
     try:
-        file_content = await file.read()
-        if len(file_content) == 0:
+        # 非阻塞获取锁，如果已被锁定则立即返回错误
+        acquired = await lock.acquire(blocking=False)
+        if not acquired:
+            logger.warning(f"合同 {contract_id} 正在审查中，拒绝重复请求")
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="文件内容为空"
+                status_code=status.HTTP_409_CONFLICT,
+                detail="该合同正在审查中，请勿重复提交"
             )
-        if len(file_content) > 50 * 1024 * 1024:  # 50MB 限制
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="文件大小超过50MB限制"
-            )
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"读取文件失败: {e}")
+        
+        logger.info(f"成功获取合同 {contract_id} 的分布式锁")
+    except ResourceLockedException:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="文件读取失败"
+            status_code=status.HTTP_409_CONFLICT,
+            detail="该合同正在审查中，请勿重复提交"
+        )
+    
+    try:
+        # 4. 解析审查选项
+        options = parse_json_options(
+            review_options,
+            model_class=ReviewOptions,
+            default=ReviewOptions
+        )
+        logger.info(f"创建审查任务 - review_id: {review_id}, contract_id: {contract_id}")
+
+        # 5. 清理文件名并验证
+        safe_filename = sanitize_filename(file.filename)
+        file_ext = validate_file_extension(safe_filename)
+
+        # 6. 读取文件内容（必须在异步任务启动前读取）
+        try:
+            file_content = await file.read()
+            if len(file_content) == 0:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="文件内容为空"
+                )
+            if len(file_content) > 50 * 1024 * 1024:  # 50MB 限制
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="文件大小超过50MB限制"
+                )
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"读取文件失败: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="文件读取失败"
+            )
+
+        # 7. 创建任务记录
+        task_service.create_task(
+            review_id=review_id,
+            contract_id=contract_id,
+            file_name=safe_filename,
+            file_type=file_ext,
+            review_options=options.model_dump()
         )
 
-    # 6. 创建任务记录
-    task_service.create_task(
-        review_id=review_id,
-        contract_id=contract_id,
-        file_name=safe_filename,
-        file_type=file_ext,
-        review_options=options.model_dump()
-    )
+        # 8. 启动异步审查任务（不等待完成）
+        # 注意：任务启动后锁会自动释放，因为 review_worker 内部有自己的状态管理
+        await review_worker.start_review(
+            review_id=review_id,
+            contract_id=contract_id,
+            file_content=file_content,
+            file_name=safe_filename,
+            file_type=file_ext,
+            review_options=options.model_dump()
+        )
 
-    # 7. 启动异步审查任务（不等待完成）
-    await review_worker.start_review(
-        review_id=review_id,
-        contract_id=contract_id,
-        file_content=file_content,
-        file_name=safe_filename,
-        file_type=file_ext,
-        review_options=options.model_dump()
-    )
-
-    logger.info(f"审查任务已启动: {review_id}")
+        logger.info(f"审查任务已启动: {review_id}")
+    finally:
+        # 释放分布式锁
+        await lock.release()
+        logger.debug(f"已释放合同 {contract_id} 的分布式锁")
 
     # 8. 立即返回
     return Result(

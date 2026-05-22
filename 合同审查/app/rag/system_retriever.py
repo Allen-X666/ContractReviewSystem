@@ -367,6 +367,7 @@ async def get_system_retriever() -> SystemDocumentRetriever:
     检索相关操作指南。
 
     优先使用预热服务中已加载的 Embedding 模型，避免重复加载。
+    支持混合检索（向量检索 + 关键词检索）。
 
     Returns:
         SystemDocumentRetriever: 系统操作文档检索器实例
@@ -395,8 +396,11 @@ async def get_system_retriever() -> SystemDocumentRetriever:
             model=settings.EMBEDDING_MODEL,
         )
 
+    # 创建系统文档检索器（已内置混合检索支持）
     _system_retriever_cache = SystemDocumentRetriever(embeddings=embeddings)
-    logger.info("系统操作文档检索器初始化完成")
+
+    mode = "混合检索" if settings.HYBRID_RETRIEVAL_ENABLED else "向量检索"
+    logger.info(f"系统操作文档检索器初始化完成 | 模式: {mode} | 向量权重: {settings.HYBRID_VECTOR_WEIGHT} | 关键词权重: {settings.HYBRID_KEYWORD_WEIGHT}")
     return _system_retriever_cache
 
 

@@ -156,13 +156,13 @@ class Settings(BaseSettings):
 
     # ==================== 混合检索配置 ====================
     # 是否启用混合检索（向量检索 + 关键词检索）
-    HYBRID_RETRIEVAL_ENABLED: bool = os.getenv("HYBRID_RETRIEVAL_ENABLED", "true").lower() == "true"
+    HYBRID_RETRIEVAL_ENABLED: bool = "true"
     # 向量检索权重（0.0-1.0）
-    HYBRID_VECTOR_WEIGHT: float = float(os.getenv("HYBRID_VECTOR_WEIGHT", "0.7"))
+    HYBRID_VECTOR_WEIGHT: float = 0.7
     # 关键词检索权重（0.0-1.0）
-    HYBRID_KEYWORD_WEIGHT: float = float(os.getenv("HYBRID_KEYWORD_WEIGHT", "0.3"))
+    HYBRID_KEYWORD_WEIGHT: float = 0.3
     # 混合检索召回数量（重排前）
-    HYBRID_RECALL_TOP_K: int = int(os.getenv("HYBRID_RECALL_TOP_K", "10"))
+    HYBRID_RECALL_TOP_K: int = 10
 
     class Config:
         env_file = ".env"
