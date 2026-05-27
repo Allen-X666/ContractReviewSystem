@@ -12,6 +12,7 @@ import com.example.contractreview.model.vo.ContractStatsVO;
 import com.example.contractreview.model.vo.ContractVOPackage.UploadResultVO;
 import com.example.contractreview.model.vo.ContractVO;
 import com.example.contractreview.service.ContractService;
+import com.example.contractreview.utils.FileTypeUtils;
 import com.example.contractreview.utils.TokenUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.pagehelper.PageHelper;
@@ -79,9 +80,9 @@ public class ContractServiceImpl implements ContractService {
         }
 
         String originalFilename = file.getOriginalFilename();
-        String fileExtension = getFileExtension(originalFilename);
+        String fileExtension = FileTypeUtils.getFileExtension(originalFilename);
 
-        if (!isSupportedFileType(fileExtension)) {
+        if (!FileTypeUtils.isValidContractType(fileExtension)) {
             log.warn("不支持的文件类型: {}", fileExtension);
             return Result.error(ResultCode.FILE_TYPE_NOT_SUPPORTED);
         }
@@ -331,17 +332,6 @@ public class ContractServiceImpl implements ContractService {
         return UUID.randomUUID().toString().replace("-", "") + "." + extension;
     }
 
-    private String getFileExtension(String filename) {
-        if (filename == null || !filename.contains(".")) {
-            return "";
-        }
-        return filename.substring(filename.lastIndexOf(".") + 1).toLowerCase();
-    }
-
-    private boolean isSupportedFileType(String extension) {
-        return "pdf".equals(extension) || "docx".equals(extension);
-    }
-
     // 获取合同统计信息
     @Override
     public Result<ContractStatsVO> getContractStats(String authorization) {
@@ -511,7 +501,7 @@ public class ContractServiceImpl implements ContractService {
             return ResponseEntity.notFound().build();
         }
 
-        String contentType = determineContentType(contract.getFileType());
+        String contentType = FileTypeUtils.determineContentType(contract.getFileType());
         String encodedFileName = URLEncoder.encode(contract.getFileName(), StandardCharsets.UTF_8)
                 .replace("+", "%20");
 
@@ -563,7 +553,7 @@ public class ContractServiceImpl implements ContractService {
             return ResponseEntity.notFound().build();
         }
 
-        String contentType = determineContentType(getFileExtension(fileName));
+        String contentType = FileTypeUtils.determineContentType(FileTypeUtils.getFileExtension(fileName));
         String encodedFileName = URLEncoder.encode(fileName, StandardCharsets.UTF_8)
                 .replace("+", "%20");
 
@@ -571,18 +561,6 @@ public class ContractServiceImpl implements ContractService {
                 .contentType(MediaType.parseMediaType(contentType))
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + encodedFileName)
                 .body(resource);
-    }
-
-    private String determineContentType(String fileType) {
-        if (fileType == null) {
-            return MediaType.APPLICATION_OCTET_STREAM_VALUE;
-        }
-        return switch (fileType.toLowerCase()) {
-            case "pdf" -> MediaType.APPLICATION_PDF_VALUE;
-            case "docx" -> "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-            case "doc" -> "application/msword";
-            default -> MediaType.APPLICATION_OCTET_STREAM_VALUE;
-        };
     }
 
     /**

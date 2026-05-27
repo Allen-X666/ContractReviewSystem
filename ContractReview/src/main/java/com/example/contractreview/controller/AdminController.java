@@ -11,6 +11,7 @@ import com.example.contractreview.model.entity.User;
 import com.example.contractreview.model.vo.NoticeVO;
 import com.example.contractreview.model.vo.SelectSystemDocumentListVO;
 import com.example.contractreview.service.AdminService;
+import com.example.contractreview.utils.FileTypeUtils;
 import com.example.contractreview.utils.TokenUtils;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.swagger.v3.oas.annotations.Operation;
@@ -127,7 +128,7 @@ public class AdminController {
         }
 
         // 确定Content-Type
-        String contentType = determineContentType(doc.getFileType());
+        String contentType = FileTypeUtils.determineContentType(doc.getFileType());
         String encodedFileName = URLEncoder.encode(doc.getName(), StandardCharsets.UTF_8)
                 .replace("+", "%20");
 
@@ -135,21 +136,6 @@ public class AdminController {
                 .contentType(MediaType.parseMediaType(contentType))
                 .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename*=UTF-8''" + encodedFileName)
                 .body(resource);
-    }
-
-    /**
-     * 确定文件Content-Type
-     */
-    private String determineContentType(String fileType) {
-        if (fileType == null) {
-            return MediaType.APPLICATION_OCTET_STREAM_VALUE;
-        }
-        return switch (fileType.toLowerCase()) {
-            case "pdf" -> MediaType.APPLICATION_PDF_VALUE;
-            case "docx" -> "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-            case "doc" -> "application/msword";
-            default -> MediaType.APPLICATION_OCTET_STREAM_VALUE;
-        };
     }
 
     /**
@@ -309,8 +295,8 @@ public class AdminController {
         }
 
         // 确定Content-Type
-        String fileType = getFileExtension(doc.getName());
-        String contentType = determineContentType(fileType);
+        String fileType = FileTypeUtils.getFileExtension(doc.getName());
+        String contentType = FileTypeUtils.determineContentType(fileType);
         String encodedFileName = URLEncoder.encode(doc.getName(), StandardCharsets.UTF_8)
                 .replace("+", "%20");
 
@@ -354,15 +340,5 @@ public class AdminController {
                 .contentType(MediaType.parseMediaType(contentType))
                 .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename*=UTF-8''" + encodedFileName)
                 .body(resource);
-    }
-
-    /**
-     * 获取文件扩展名
-     */
-    private String getFileExtension(String fileName) {
-        if (fileName == null || !fileName.contains(".")) {
-            return "";
-        }
-        return fileName.substring(fileName.lastIndexOf(".") + 1).toLowerCase();
     }
 }

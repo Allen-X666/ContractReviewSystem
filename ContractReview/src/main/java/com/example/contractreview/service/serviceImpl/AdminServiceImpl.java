@@ -19,6 +19,7 @@ import com.example.contractreview.client.FastApiClient;
 import com.example.contractreview.model.vo.SelectSystemDocumentListVO;
 import com.example.contractreview.service.AdminService;
 import com.example.contractreview.sse.SseEmitterManager;
+import com.example.contractreview.utils.FileTypeUtils;
 import com.example.contractreview.utils.GetUserSystemConfigUtils;
 import com.example.contractreview.utils.LawFileParser;
 import com.example.contractreview.utils.TokenUtils;
@@ -261,8 +262,8 @@ public class AdminServiceImpl implements AdminService {
             return Result.error(ResultCode.BAD_REQUEST.getCode(), "文件名不能为空");
         }
 
-        String fileExtension = getFileExtension(originalFilename).toLowerCase();
-        if (!isValidLawFileType(fileExtension)) {
+        String fileExtension = FileTypeUtils.getFileExtension(originalFilename).toLowerCase();
+        if (!FileTypeUtils.isValidLawDocumentType(fileExtension)) {
             return Result.error(ResultCode.FILE_TYPE_NOT_SUPPORTED.getCode(), "不支持的文件类型，仅支持 PDF、DOC、MarkDown 格式");
         }
 
@@ -686,8 +687,8 @@ public class AdminServiceImpl implements AdminService {
             return Result.error(ResultCode.BAD_REQUEST.getCode(), "文件名不能为空");
         }
 
-        String fileExtension = getFileExtension(originalFilename).toLowerCase();
-        if (!isValidLawSystemFileType(fileExtension)) {
+        String fileExtension = FileTypeUtils.getFileExtension(originalFilename).toLowerCase();
+        if (!FileTypeUtils.isValidSystemDocumentType(fileExtension)) {
             return Result.error(ResultCode.FILE_TYPE_NOT_SUPPORTED.getCode(), "不支持的文件类型，仅支持 DOCX、MarkDown 格式");
         }
 
@@ -855,42 +856,6 @@ public class AdminServiceImpl implements AdminService {
         }
 
         return path;
-    }
-
-    /**
-     * 获取文件扩展名
-     */
-    private String getFileExtension(String filename) {
-        int lastDotIndex = filename.lastIndexOf(".");
-        return lastDotIndex == -1 ? "" : filename.substring(lastDotIndex + 1);
-    }
-
-    /**
-     * 校验是否为有效的法律文档文件类型
-     */
-    private boolean isValidLawFileType(String extension) {
-        return "pdf".equals(extension) || "doc".equals(extension) || "docx".equals(extension) || "md".equals(extension);
-    }
-
-    private boolean isValidLawSystemFileType(String extension) {
-        return "docx".equals(extension) || "md".equals(extension);
-    }
-
-    /**
-     * 根据文件扩展名确定Content-Type
-     */
-    private String determineContentType(String fileExtension) {
-        return switch (fileExtension.toLowerCase()) {
-            case "pdf" -> "application/pdf";
-            case "doc" -> "application/msword";
-            case "docx" -> "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-            case "md" -> "text/markdown";
-            case "txt" -> "text/plain";
-            case "jpg", "jpeg" -> "image/jpeg";
-            case "png" -> "image/png";
-            case "gif" -> "image/gif";
-            default -> "application/octet-stream";
-        };
     }
 
     /**

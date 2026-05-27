@@ -74,7 +74,10 @@ public class PutObjectAsync {
 
         // 2. 生成唯一文件名
         String originalFilename = file.getOriginalFilename();
-        String extension = getFileExtension(originalFilename);
+        String extension = FileTypeUtils.getFileExtension(originalFilename);
+        if (extension.isEmpty()) {
+            extension = "unknown";
+        }
         String uniqueFileName = generateUniqueFileName(userId, extension);
         String objectKey = PATH_PREFIX + "avatar/" + uniqueFileName;
 
@@ -139,23 +142,10 @@ public class PutObjectAsync {
 
         // 校验文件扩展名
         String originalFilename = file.getOriginalFilename();
-        String extension = getFileExtension(originalFilename);
-        if (extension == null || !ALLOWED_EXTENSIONS.contains(extension.toLowerCase())) {
+        String extension = FileTypeUtils.getFileExtension(originalFilename);
+        if (extension.isEmpty() || !ALLOWED_EXTENSIONS.contains(extension)) {
             throw new IllegalArgumentException("文件扩展名不合法");
         }
-    }
-
-    /**
-     * 获取文件扩展名
-     *
-     * @param filename 文件名
-     * @return 扩展名（小写）
-     */
-    private String getFileExtension(String filename) {
-        if (filename == null || filename.lastIndexOf(".") == -1) {
-            return null;
-        }
-        return filename.substring(filename.lastIndexOf(".") + 1).toLowerCase();
     }
 
     /**
