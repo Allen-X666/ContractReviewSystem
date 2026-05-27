@@ -152,7 +152,7 @@ class Settings(BaseSettings):
     DB_MAX_OVERFLOW: int = 10       # 超出连接池大小时的最大连接数
     DB_POOL_TIMEOUT: int = 30       # 获取连接的超时时间（秒）
     DB_POOL_RECYCLE: int = 3600     # 连接回收时间（秒）
-    DB_ECHO: bool = False           # 是否打印SQL语句（调试用）
+    DB_ECHO: bool = True           # 是否打印SQL语句（调试用）
 
     # ==================== 混合检索配置 ====================
     # 是否启用混合检索（向量检索 + 关键词检索）
@@ -163,6 +163,14 @@ class Settings(BaseSettings):
     HYBRID_KEYWORD_WEIGHT: float = 0.3
     # 混合检索召回数量（重排前）
     HYBRID_RECALL_TOP_K: int = 10
+
+    # ==================== 相似度阈值配置 ====================
+    # 法律文档检索阈值（高精度场景，宁缺毋滥）
+    LAW_DOCUMENT_SCORE_THRESHOLD: float = 0.5
+    # 系统操作文档检索阈值（相对宽松，优先有结果）
+    SYSTEM_DOCUMENT_SCORE_THRESHOLD: float = 0.4
+    # ChatBot知识检索阈值（更宽松，保证用户体验）
+    CHATBOT_KNOWLEDGE_THRESHOLD: float = 0.3
 
     class Config:
         env_file = ".env"

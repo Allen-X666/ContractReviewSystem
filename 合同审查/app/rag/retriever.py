@@ -181,7 +181,7 @@ class VectorRetriever(BaseRetriever):
         query: str,
         top_k: int = 5,
         filter_dict: Optional[Dict[str, Any]] = None,
-        score_threshold: float = 0.0,  # 相似度阈值，低于此值的结果将被过滤
+        score_threshold: float = None,  # 相似度阈值，低于此值的结果将被过滤
     ) -> List[RetrievedClause]:
         """
         检索相关条款
@@ -195,6 +195,8 @@ class VectorRetriever(BaseRetriever):
         Returns:
             List[RetrievedClause]: 检索结果列表
         """
+        if score_threshold is None:
+            score_threshold = settings.LAW_DOCUMENT_SCORE_THRESHOLD
         logger.info(f"【向量检索】查询: '{query[:100]}...' | top_k={top_k} | 阈值={score_threshold}")
         if filter_dict:
             logger.info(f"【向量检索】过滤条件: {filter_dict}")

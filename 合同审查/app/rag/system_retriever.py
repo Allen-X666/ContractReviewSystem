@@ -146,9 +146,13 @@ class SystemDocumentRetriever(BaseRetriever):
             logger.warning("【系统操作检索】未找到任何结果")
             return []
 
-        # 转换为 RetrievedClause
+        # 转换为 RetrievedClause 并过滤低相似度结果
         clauses = []
         for i, (record, score) in enumerate(results):
+            # 过滤低于阈值的结果
+            if score < settings.SYSTEM_DOCUMENT_SCORE_THRESHOLD:
+                logger.debug(f"【系统操作检索】结果 {i+1} 相似度 {score:.4f} 低于阈值 {settings.SYSTEM_DOCUMENT_SCORE_THRESHOLD}，已过滤")
+                continue
             clause = RetrievedClause.from_record(record, score)
             clause.metadata["vector_score"] = score
             clauses.append(clause)
